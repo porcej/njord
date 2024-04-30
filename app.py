@@ -36,7 +36,7 @@ def load_json_from_url(url):
     - dict or None: The parsed JSON data as a dictionary, or None if there was an error.
     """
     try:
-        response = requests.get(url)
+        response = requests.get(url, verify=False)
         response.raise_for_status()  # Raise an exception for bad status codes
         json_data = response.json()
         return json_data

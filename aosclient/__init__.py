@@ -68,7 +68,7 @@ class AOSClient:
                 "login": login,
                 "password": password
             }
-            response = requests.post(url, json=json_data, headers=self.headers, verify=false)
+            response = requests.post(url, json=json_data, headers=self.headers, verify=False)
             if response.status_code == 200:
                 response_json = response.json()
                 self.access_token = response_json.get("data", {}).get("access_token")
