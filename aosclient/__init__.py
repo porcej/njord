@@ -63,7 +63,7 @@ class AOSClient:
             str: The access token obtained from the API, or None if authentication fails.
         """
         try:
-            url = f"{self.base_url}/AUTH_API_ENDPOINT"
+            url = f"{self.base_url}{self.AUTH_API_ENDPOINT}"
             json_data = {
                 "login": login,
                 "password": password
@@ -92,7 +92,7 @@ class AOSClient:
             dict: The JSON response from the API, or None if an error occurs.
         """
         try:
-            url = f"{self.base_url}/{GET_API_ENDPOINT}"
+            url = f"{self.base_url}{self.GET_API_ENDPOINT}"
             json_data = {
                 "fields": fields
             }
