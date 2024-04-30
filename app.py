@@ -144,7 +144,7 @@ if __name__ == "__main__":
         if access_token:
             # Use the client to make authenticated requests
             fields = ["net.wifi.ssid", "location.gnss"]
-            data_response = client.get_data(endpoint)
+            data_response = client.get_data(fields)
             if data_response:
                 print("Data received successfully:")
                 print(data_response)
