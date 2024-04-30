@@ -96,7 +96,7 @@ class AOSClient:
             json_data = {
                 "fields": fields
             }
-            response = requests.post(url, json=json_data, headers=self.headers, verify=false)
+            response = requests.post(url, json=[json_data], headers=self.headers, verify=False)
             if response.status_code == 200:
                 return response_json.get("data", {})
             else:
