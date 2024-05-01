@@ -63,12 +63,12 @@ class AOSClient:
             str: The access token obtained from the API, or None if authentication fails.
         """
         try:
-            url = f"{self.base_url}/AUTH_API_ENDPOINT"
+            url = f"{self.base_url}{self.AUTH_API_ENDPOINT}"
             json_data = {
                 "login": login,
                 "password": password
             }
-            response = requests.post(url, json=json_data, headers=self.headers, verify=false)
+            response = requests.post(url, json=json_data, headers=self.headers, verify=False)
             if response.status_code == 200:
                 response_json = response.json()
                 self.access_token = response_json.get("data", {}).get("access_token")
@@ -92,13 +92,13 @@ class AOSClient:
             dict: The JSON response from the API, or None if an error occurs.
         """
         try:
-            url = f"{self.base_url}/{GET_API_ENDPOINT}"
+            url = f"{self.base_url}{self.GET_API_ENDPOINT}"
             json_data = {
                 "fields": fields
             }
-            response = requests.post(url, json=json_data, headers=self.headers, verify=false)
+            response = requests.post(url, json=[json_data], headers=self.headers, verify=False)
             if response.status_code == 200:
-                return response_json.get("data", {})
+                return response.json().get("data", {})
             else:
                 print(f"Error: Request failed with status code {response.status_code}")
                 return None
