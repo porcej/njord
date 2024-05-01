@@ -43,6 +43,7 @@ class AOSClient:
             base_url (str): The base URL of the API.
             access_token (str): The access token used for authentication.
         """
+        self.verify_ssl = False
         self.base_url = base_url
         self.access_token = access_token
         self.headers = {
@@ -68,7 +69,7 @@ class AOSClient:
                 "login": login,
                 "password": password
             }
-            response = requests.post(url, json=json_data, headers=self.headers, verify=False)
+            response = requests.post(url, json=json_data, headers=self.headers, verify=self.verify_ssl)
             if response.status_code == 200:
                 response_json = response.json()
                 self.access_token = response_json.get("data", {}).get("access_token")
@@ -96,7 +97,7 @@ class AOSClient:
             json_data = {
                 "fields": fields
             }
-            response = requests.post(url, json=[json_data], headers=self.headers, verify=False)
+            response = requests.post(url, json=[json_data], headers=self.headers, verify=self.verify_ssl)
             if response.status_code == 200:
                 return response.json().get("data", {})
             else:
