@@ -22,6 +22,40 @@ __app_name__ = "AOSClient"
 
 import requests
 
+
+class AOSKeys:
+    """
+    Constants representing JSON keys for AOS's API response related.
+    
+    Attributes:
+        GNSS_FIXTIME (str): Key for GNSS fix time in the JSON response.
+        GNSS_LATITUDE (str): Key for GNSS latitude in the JSON response.
+        GNSS_LONGITUDE (str): Key for GNSS longitude in the JSON response.
+        GNSS_HEADING (str): Key for GNSS heading in the JSON response.
+        GNSS_SPEED (str): Key for GNSS speed in the JSON response.
+        GNSS_TAIP_ID (str): Key for GNSS TAIP ID in the JSON response.
+    """
+    GNSS_FIXTIME="location.gnss.fixtime"
+    GNSS_LATITUDE="location.gnss.latitude"
+    GNSS_LONGITUDE="location.gnss.longitude"
+    GNSS_HEADING="location.gnss.heading"
+    GNSS_SPEED="location.gnss.speed"
+    GNSS_TAIP_ID="location.gnss.taipid"
+
+    def generate_wifi_key(ssid, band="band2400"):
+        """
+        Generate a key for a Wifi AP in AOS's API JSON Respone
+
+        Args:
+            ssid (str): The ssid for the AP
+            band (str): Representation for the AP band
+
+        Returns:
+            str: Key for the Wifi AP in the AOS JSON response
+        """
+        return f'net.wifi.ssid.scan[{ssid}].{band}'
+
+
 class AOSClient:
     """
     AOS client for a web service API that handles authentication and includes the access token in requests.
@@ -81,6 +115,7 @@ class AOSClient:
         except Exception as e:
             print(f"Error: {e}")
             return None
+
 
     def get_data(self, fields):
         """
