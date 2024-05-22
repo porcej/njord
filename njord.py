@@ -23,6 +23,7 @@ import json
 import os
 import re
 import requests
+import tests
 from urllib.parse import urlparse
 from aosclient import AOSClient, AOSKeys
 from gnss import GNSS
@@ -147,7 +148,9 @@ def check_for_known_access_points(config, aos_resp):
         (dict or None): Access Point Dict for the first seen Access Point or None if no Access Points are in Range
     """
     # Reorganize the list of known access points into a more digestable form
-    wifi_networks = {wn['Ssid']: [d for d in config if d['Ssid'] == wn['Ssid']] for wn in config}
+    from pprint import pprint
+    
+    wifi_networks = {wn['Ssid']: [d for d in config['KnownAps'] if d['Ssid'] == wn['Ssid']] for wn in config['KnownAps']}
 
     for ssid, wifi_access_points in wifi_networks.items():
         for band in ["band2400", "band5400"]:
@@ -169,29 +172,33 @@ def check_for_known_access_points(config, aos_resp):
     # No Access Points Founds
     return None
 
-
-def test_aos_wifi_response(file_or_url, config):
+def load_aos_check_and_set_state(aos_resp, config):
     """
-    Reads JSON data from a file path or URL, generates a TAIP A PV message based on a known Wifi AP, prints the message to standard output,
-    and exits with an appropriate return code.
+    Load AOS response, check for known access points, and set the GNSS state.
+
+    This function processes the AOS response, checks for known access points, 
+    and sets the state of the GNSS receiver accordingly.
 
     Args:
-        file_or_url (str): The file path or URL from which to read the JSON data.
-        conifg (dict): The configuration dictionary for the application including the KnownAccessPoints list.
+        aos_resp (dict): A dictionary containing the response from the AOS API.
+        config (dict): A dictionary containing the application configuration.
 
+    Returns:
+        GNSS: An instance of the GNSS class with updated state.
     """
-
-    aos_resp = load_json_from_url_or_file(file_or_url)
-
-    # Extract the data Elements from the AOS Json Response
+    # Get rid of overhead on resp dict
     aos_resp = aos_resp['data'][0]
-    
     if aos_resp is None:
-        raise Exception("Please provide either a valid URL or a valid file path for the AOS response JSON.")
-    
+        raise Exception("No response from AOS.")
+
+    # Check to see if a known AP is within view
     access_point = check_for_known_access_points(config, aos_resp)
+
+    gnss = GNSS()
+
+    # We have an access point
     if access_point is not None:
-        gnss = GNSS()
+        log_message('info', f'Access Point: {access_point["Ssid"]} found.')
         gnss.set_basic_values(fixtime=None, 
                               latitude=access_point['Latitude'],
                               longitude=access_point['Longitude'],
@@ -200,48 +207,35 @@ def test_aos_wifi_response(file_or_url, config):
                               taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID],
                               source=9,
                               age=2)
-        taip_message = gnss.taip_pv_message()
-        print(taip_message)
+
+    # No Access point, use GNSSS Data
     else:
-        print("No Access Points seen.")
+        try:
+            gnss.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS_FIXTIME], 
+                                  latitude=aos_resp[AOSKeys.GNSS_LATITUDE],
+                                  longitude=aos_resp[AOSKeys.GNSS_LONGITUDE],
+                                  heading=aos_resp[AOSKeys.GNSS_HEADING],
+                                  speed=aos_resp[AOSKeys.GNSS_SPEED],
+                                  taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID])
+        except:
+            log_message('error', "Error reading AOS response") 
+            GNSS_STATE.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS_FIXTIME], 
+                              latitude=aos_resp[AOSKeys.GNSS_LATITUDE],
+                              longitude=aos_resp[AOSKeys.GNSS_LONGITUDE],
+                              heading=aos_resp[AOSKeys.GNSS_HEADING],
+                              speed=aos_resp[AOSKeys.GNSS_SPEED],
+                              taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID])
 
-
-
-
-
-
-def test_aos_gnss_response(file_or_url):
-    """
-    Reads JSON data from a file path or URL, generates a TAIP A PV message, prints the message to standard output,
-    and exits with an appropriate return code.
-
-    Args:
-        file_or_url (str): The file path or URL from which to read the JSON data.
-
-    """
-    aos_resp = load_json_from_url_or_file(file_or_url)
-    if aos_resp is None:
-        raise Exception("Please provide either a valid URL or a valid file path for the AOS response JSON.")
-
-    aos_resp = aos_resp['data'][0]
-
-    gnss = GNSS()
-    gnss.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS_FIXTIME], 
-                          latitude=aos_resp[AOSKeys.GNSS_LATITUDE],
-                          longitude=aos_resp[AOSKeys.GNSS_LONGITUDE],
-                          heading=aos_resp[AOSKeys.GNSS_HEADING],
-                          speed=aos_resp[AOSKeys.GNSS_SPEED],
-                          taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID])
-    taip_message = gnss.taip_pv_message()
-    print(taip_message)
+    return gnss
 
 # Example usage:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=__description__)
     parser.add_argument("-b", "--aosurl", default="https://192.168.1.1", help="Base URL for AOS API, defaults to \"https://192.168.1.1\"")
-    parser.add_argument("-u", "--username", type=str, help="Username for AOS authentication.")
-    parser.add_argument("-p", "--password", type=str, help="Password for AOS authentication.")
+    parser.add_argument("-B", "--aosfile", help="File path for AOS API output")
+    parser.add_argument("-u", "--username", type=str, help="Username for AOS authentication. - overrides config file")
+    parser.add_argument("-p", "--password", type=str, help="Password for AOS authentication. - overrides config file")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output")
     parser.add_argument("-T", "--testaoswifi", type=str,  help="URL or file path to AOS API response, reads response, prints TAIP Message associated with scene Wifi Access Points.")
     group = parser.add_mutually_exclusive_group(required=True)
@@ -252,7 +246,7 @@ if __name__ == "__main__":
 
     # Run Test Harness for Parsing AOS API Respone and Generating a TAIP A PV Message
     if args.testaosgnss is not None:
-        test_aos_gnss_response(args.testaosgnss)
+        tests.test_aos_gnss_response(args.testaosgnss )
         exit(0)
 
     # Load Wifi AP Config
@@ -263,14 +257,22 @@ if __name__ == "__main__":
 
     # Run test Harness for PArsing AOS API Respone and Wifi Config then generating a TAIP A PV Message
     if args.testaoswifi is not None:
-        test_aos_wifi_response(args.testaoswifi, config)
+        tests.test_aos_wifi_response(args.testaoswifi, config)
         exit(1)
 
+    # Overwrite (or set) username if username is supplied via command line
+    if args.username is not None:
+        config['ApiUser']['Username'] = args.username
+        config['ApiUser']['CLA_USERNAME'] = True
 
-    if config:
-        print("Configuration read successfully:")
-        print(json.dumps(config, indent=4))
+    # Overwrite (or set) password if password is supplied via command line
+    if args.password is not None:
+        confgi['ApiUser']['Password'] = args.password
+        config['ApiUser']['CLA_PASSWORD'] = True
 
+
+    # Check if AOS URL is set
+    if args.aosurl is not None:
         # "https://192.168.1.1"
         client = AOSClient(args.aosurl, access_token=None)
 
@@ -285,6 +287,9 @@ if __name__ == "__main__":
                 print("Data received successfully:")
                 print(data_response)
             else:
-                log_message("WARN", "API Data not loaded")
+                log_message("WARN", "API Data not loaded from URL")
         else:
             log_message("WARN", "API Authentication Failed")
+    elif args.aosfile is not None:
+        pass
+
