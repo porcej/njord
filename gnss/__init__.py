@@ -108,6 +108,16 @@ class GNSS:
         return int(seconds_since_previous_midnight)
 
 
+    def get_message(self, message_type="TAIP_PV"):
+        if message_type == "TAIP_PV":
+            return self.taip_pv_message()
+        elif message_type == "NMEA":
+            pass
+        else:
+            pass
+
+        raise ValueError(f'Unknown message type: {message_type}')
+
     def taip_pv_message(self):
         """
         Generate a TAIP PV message from the current GNSS Data Set.
