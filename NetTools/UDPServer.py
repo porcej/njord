@@ -21,16 +21,18 @@ class UDPServer:
     UDP Server that accepts connections from multiple clients and sends a message to all of them.
     """
 
-    def __init__(self, host, port):
+    def __init__(self, host, port, encoding="utf-8"):
         """
         Initialize the UDP server with the specified host and port.
         
         Args:
             host (str): The hostname or IP address to bind the server to.
             port (int): The port number to bind the server to.
+            encoding (str): The encoding used for the data stream
         """
         self.host = host
         self.port = port
+        self.encoding = encoding
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.host, self.port))
         self.clients = {}  # Dictionary to track connected clients
@@ -42,7 +44,7 @@ class UDPServer:
         print(f"UDP Server listening on {self.host}:{self.port}")
         while True:
             data, client_address = self.socket.recvfrom(1024)
-            print(f"Received message from {client_address}: {data.decode()}")
+            print(f"Received message from {client_address}: {data.decode(self.encoding)}")
             self.handle_message(data, client_address)
 
     def handle_message(self, message, client_address):
@@ -52,11 +54,13 @@ class UDPServer:
         Args:
             message (bytes): The message received from the client, encoded as bytes.
             client_address (tuple): The address of the client (hostname, port).
+
+        Returns:
+            str: The received message.
         """
         if client_address not in self.clients:
             self.clients[client_address] = True
-            print(f"New client connected: {client_address}")
-        self.send_to_all(message)
+        return message
 
     def send_to_all(self, message):
         """
