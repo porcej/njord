@@ -268,8 +268,6 @@ class NJORD:
                                       source=9,
                                       age=2)
             else:
-                from pprint import pprint
-                print(pprint(aos_resp))
                 gnss.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS_FIXTIME],
                                       latitude=aos_resp[AOSKeys.GNSS_LATITUDE],
                                       longitude=aos_resp[AOSKeys.GNSS_LONGITUDE],
@@ -281,8 +279,7 @@ class NJORD:
         except KeyError as e:
             raise KeyError(f"Missing required key in AOS response data: {e}")
         except Exception as e:
-            from pprint import pprint
-            raise Exception(f"An unexpected error occurred: {pprint(e)}")
+            raise Exception(f"An unexpected error occurred: {e}")
 
 
 def main():
