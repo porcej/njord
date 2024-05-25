@@ -17,14 +17,12 @@ __email__ = "porcej@gmail.com"
 __status__ = "Development"
 __description__ = "A buoy to augment a GNSS data stream based on known Wifi AP locations."
 __app_name__ = "NJORD"
-
 import argparse
 import json
 import os
-import re
 import requests
-import tests
 from datetime import datetime
+from requests.exceptions import HTTPError, RequestException
 from aosclient import AOSClient, AOSKeys
 from gnss import GNSS
 import NetTools as NT
@@ -43,18 +41,19 @@ class NJORD:
         AOSUrl (str): AOS API Base URL
         config_url (str): URL for config file updates
         aos_username (str): AOS Username used to generate access token
-        aos_password (str): AOS Password used to genreate access token
+        aos_password (str): AOS Password used to generate access token
     """
-
 
     def __init__(self, config_file_path, aos_url=None, config_url=None, aos_username=None, aos_password=None):
         """
         Initialize the API client with the base URL and access token.
 
         Args:
-            config_file_path (str): String representing local file path for config
-            known_access_points (list): List of known access points.
-            known_access_point_update_time: The update time for the known access points list.
+            config_file_path (str): String representing local file path for config.
+            aos_url (str): AOS API base URL.
+            config_url (str): URL for config file updates.
+            aos_username (str): AOS Username used to generate access token.
+            aos_password (str): AOS Password used to generate access token.
         """
         self.messengers = []
         self.access_points = {}
@@ -66,9 +65,9 @@ class NJORD:
         try:
             self.load_json_configuration()
         except FileNotFoundError:
-            pass 
+            pass
 
-        # If we have an configuraiton update URL, check for updates
+        # If we have a configuration update URL, check for updates
         if config_url is not None:
             self.download_json_if_updated()
             try:
@@ -76,29 +75,36 @@ class NJORD:
             except FileNotFoundError:
                 pass
 
-
         # Create our AOS API Client
         self.AOSClient = AOSClient(base_url=aos_url, access_token=None, username=aos_username, password=aos_password)
 
         # Authenticate and get access token
-        self.AOSClient. generate_authentication_token()
+        self.AOSClient.generate_authentication_token()
 
-    def send_gnss(self, messege_type='TAIP_PV'):
-        messege = self.generate_location_message(messege_type)
-        for messenger in self.messengers:
-            messenger.print(messege)
-
-
-    def add_messanger(self, messenger):
+    def send_gnss(self, message_type='TAIP_PV'):
         """
+        Sends the GNSS message to all registered messengers.
+
+        Args:
+            message_type (str): The type of message to generate. Default is 'TAIP_PV'.
+        """
+        message = self.generate_location_message(message_type)
+        for messenger in self.messengers:
+            messenger.print(message)
+
+    def add_messenger(self, messenger):
+        """
+        Adds a messenger to the list of messengers.
+
+        Args:
+            messenger: An object with a send_message method to send the GNSS data.
         """
         self.messengers.append(messenger)
 
         try:
-            self.messengers[len(self.messengers)-1].start()
+            self.messengers[-1].start()
         except AttributeError:
             pass
-
 
     def set_known_access_point_update_from_timestamp(self, timestamp):
         """
@@ -106,22 +112,17 @@ class NJORD:
 
         Args:
             timestamp (int): The Unix timestamp to convert.
-
-        Returns:
-            datetime: The corresponding datetime object.
         """
         try:
             # Ensure the timestamp is a valid integer
             if not isinstance(timestamp, int):
                 raise ValueError("Timestamp must be an integer")
-            
+
             # Convert the Unix timestamp to a datetime object
             self.known_access_point_update_time = datetime.fromtimestamp(timestamp)
-            
+
         except Exception as e:
             raise ValueError(f"Error converting timestamp to datetime: {e}")
-
-
 
     def download_json_if_updated(self, verify_cert=False):
         """
@@ -155,7 +156,7 @@ class NJORD:
 
             if json_last_updated_time > self.known_access_point_update_time:
                 try:
-                    with open(self.self.config_local_path, 'w') as file:
+                    with open(self.config_local_path, 'w') as file:
                         json.dump(data, file, indent=4)
                 except Exception as e:
                     raise Exception(f"Error writing JSON file: {e}")
@@ -166,7 +167,6 @@ class NJORD:
             raise ValueError(f"Error processing JSON data: {val_err}")
         except Exception as e:
             raise Exception(f"An unexpected error occurred: {e}")
-
 
     def load_json_configuration(self):
         """
@@ -180,7 +180,7 @@ class NJORD:
         # Check if the configuration file exists
         if not os.path.exists(self.config_local_path):
             raise FileNotFoundError(f"The configuration file '{self.config_local_path}' does not exist.")
-        
+
         try:
             # Open and load the JSON configuration file
             with open(self.config_local_path, "r") as file:
@@ -191,7 +191,7 @@ class NJORD:
         try:
             # Extract required data from the JSON configuration
             aps = config_data['KnownAps']
-                    # Reorganize the list of known access points into a more digestable form
+            # Reorganize the list of known access points into a more digestible form
             self.access_points = {wn['Ssid']: [d for d in aps if d['Ssid'] == wn['Ssid']] for wn in aps}
 
             self.set_known_access_point_update_from_timestamp(config_data['LastUpdated'])
@@ -199,7 +199,6 @@ class NJORD:
             self.aos_password = config_data['ApiUser']['Password']
         except KeyError as e:
             raise KeyError(f"Missing required key in configuration data: {e}")
-
 
     def check_for_known_access_points(self, aos_resp):
         """
@@ -222,7 +221,7 @@ class NJORD:
             for ssid, wifi_access_points in self.access_points.items():
                 for band in AOSKeys.WIFI_BANDS:
                     ap_key = AOSKeys.generate_wifi_key(ssid, band=band)
-                    
+
                     if ap_key in aos_resp:
                         # Reorganize the Wifi Network Access points to be keyed on BSSID
                         access_points = {ap['Bssid']: ap for ap in wifi_access_points}
@@ -238,7 +237,6 @@ class NJORD:
             raise KeyError(f"Missing required key in AOS response data: {e}")
         except Exception as e:
             raise Exception(f"An unexpected error occurred: {e}")
-
 
     def generate_location_message(self, message_type='TAIP_PV'):
         """
@@ -278,7 +276,7 @@ class NJORD:
                                       heading=aos_resp[AOSKeys.GNSS_HEADING],
                                       speed=aos_resp[AOSKeys.GNSS_SPEED],
                                       taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID])
-            
+
             return gnss.get_message(message_type=message_type)
         except KeyError as e:
             raise KeyError(f"Missing required key in AOS response data: {e}")
@@ -287,46 +285,32 @@ class NJORD:
             raise Exception(f"An unexpected error occurred: {pprint(e)}")
 
 
-
-
-
-
-
-
-
-
-
-
-# Example usage:
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description=__description__)
+def main():
+    """
+    The main function to parse arguments and initialize the NJORD application.
+    """
+    parser = argparse.ArgumentParser(description='NJORD GNSS Buoy Configuration')
     parser.add_argument('-c', '--config', default='data/config.json', help='File path for local config file.')
-    parser.add_argument('-C', '--config_url', help='URL to aquire net config files.')
+    parser.add_argument('-C', '--config_url', help='URL to acquire net config files.')
 
-    parser.add_argument("-b", "--aosurl", default="https://192.168.1.1", help="Base URL for AOS API, defaults to \"https://192.168.1.1\", if a file path is provided, tries to read the file as a proxy API")
+    parser.add_argument("-b", "--aosurl", default="https://192.168.1.1",
+                        help='Base URL for AOS API, defaults to "https://192.168.1.1", if a file path is provided, tries to read the file as a proxy API')
     parser.add_argument("-g", "--gateway", action="store_true", help="Sets the AOS API URL to the network's gateway.  Overrides --aosurl.")
 
-    parser.add_argument('-U', '--udpport', default=21000, help='UDP port to send GNSS broadcast messages')
+    parser.add_argument('-U', '--udpport', type=int, default=21000, help='UDP port to send GNSS broadcast messages')
     parser.add_argument("-s", "--stdout", action='store_true', help="Prints TAIP messages to Standard Output")
-    parser.add_argument('-t', '--tcpport', default=9011, help='TCP Port to send GNSS messages')
+    parser.add_argument('-t', '--tcpport', type=int, default=9011, help='TCP Port to send GNSS messages')
     parser.add_argument('-T', '--tcphost', help='TCP Server to send messages.')
-    
+
     parser.add_argument("-u", "--username", type=str, help="Username for AOS authentication. - overrides config file")
     parser.add_argument("-p", "--password", type=str, help="Password for AOS authentication. - overrides config file")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output")
-    # parser.add_argument("-T", "--testaoswifi", type=str,  help="URL or file path to AOS API response, reads response, prints TAIP Message associated with scene Wifi Access Points.")
-    # group = parser.add_mutually_exclusive_group(required=True)
-    # group.add_argument("-c", "--config", type=str, help="URL or file path of the JSON configuration file")
-    # group.add_argument("-t", "--testaosgnss", type=str, help="URL or file path to AOS API response, reads response, prints TAIP Message and exits.")
+
     args = parser.parse_args()
-
-
 
     aos_url = args.aosurl
 
     if args.gateway:
-
         gateway_ip = NT.get_default_gateway_linux()
         if gateway_ip is None:
             gateway_ip = NT.get_default_gateway_macos()
@@ -341,16 +325,16 @@ if __name__ == "__main__":
                 aos_password=args.password)
 
     if args.tcpport is not None and args.tcphost is not None:
-        app.add_messanger(NT.TCPClient('127.0.0.1', args.tcpport))
+        app.add_messenger(NT.TCPClient('127.0.0.1', args.tcpport))
 
     if args.udpport is not None:
-        app.add_messanger(NT.UDPClient(server_host='255.255.255.255', server_port=args.udpport))
+        app.add_messenger(NT.UDPClient(server_host='255.255.255.255', server_port=args.udpport))
 
-    if args.stdout is not None:
-        app.add_messanger(NT.PipeClient())
+    if args.stdout:
+        app.add_messenger(NT.PipeClient())
 
-    # print(app.generate_location_message())
     app.send_gnss()
 
 
-
+if __name__ == "__main__":
+    main()
