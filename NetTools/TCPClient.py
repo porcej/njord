@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-
 TCPClient.py: a simple TCP Client
-
 """
 
 __author__ = "Joe Porcelli"
 __copyright__ = "Copyright 2024, Joe Porcelli"
-
 __license__ = "MIT"
 __version__ = "0.0.1"
 __email__ = "porcej@gmail.com"
@@ -35,8 +32,11 @@ class TCPClient:
         self.encoding = encoding
         self.server_host = server_host
         self.server_port = server_port
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.server_host, self.server_port))
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect((self.server_host, self.server_port))
+        except socket.error as e:
+            raise RuntimeError(f"Failed to create and connect socket: {e}")
 
     def send_message(self, message):
         """
@@ -44,8 +44,14 @@ class TCPClient:
 
         Args:
             message (str): The message to send to the server.
+
+        Raises:
+            RuntimeError: If there is an error sending the message.
         """
-        self.socket.sendall(message.encode(self.encoding))
+        try:
+            self.socket.sendall(message.encode(self.encoding))
+        except socket.error as e:
+            raise RuntimeError(f"Failed to send message: {e}")
 
     def print(self, message):
         """
@@ -59,29 +65,36 @@ class TCPClient:
     def receive_messages(self):
         """
         Listen for messages from the server.
+
+        Raises:
+            RuntimeError: If there is an error receiving messages.
         """
         while True:
             try:
                 response = self.socket.recv(1024)
                 if not response:
                     break
-                return response.decode(self.encoding)
+                print(f"Received message from server: {response.decode(self.encoding)}")
             except ConnectionResetError:
-                raise ConnectionResetError("Connection closed by server")
-                break
+                raise RuntimeError("Connection closed by server")
+            except socket.error as e:
+                raise RuntimeError(f"Failed to receive message: {e}")
 
     def start_receiving(self):
         """
         Start a thread to listen for messages from the server.
         """
-        receive_thread = threading.Thread(target=self.receive_messages)
+        receive_thread = threading.Thread(target=self.receive_messages, daemon=True)
         receive_thread.start()
 
     def close(self):
         """
         Close the connection to the server.
         """
-        self.socket.close()
+        try:
+            self.socket.close()
+        except socket.error as e:
+            raise RuntimeError(f"Failed to close socket: {e}")
 
 
 # Usage example
@@ -97,3 +110,7 @@ if __name__ == "__main__":
             client.send_message(message)
     except KeyboardInterrupt:
         client.close()
+    except RuntimeError as e:
+        print(f"An error occurred: {e}")
+        client.close()
+
