@@ -14,6 +14,7 @@ __version__ = "0.0.1"
 __email__ = "porcej@gmail.com"
 __status__ = "Development"
 
+
 import socket
 import struct
 import subprocess
@@ -31,7 +32,7 @@ def get_default_gateway_linux():
 
     Returns:
         str: The default gateway IP address if found, otherwise None.
-    
+
     Raises:
         IOError: If there is an issue reading the /proc/net/route file.
         ValueError: If there is an issue parsing the gateway address.
@@ -41,12 +42,13 @@ def get_default_gateway_linux():
             for line in fh:
                 fields = line.strip().split()
                 if fields[1] != '00000000' or not int(fields[3], 16) & 2:
-                    # If not default route or not RTF_GATEWAY, skip it
-                    continue
+                    continue  # If not default route or not RTF_GATEWAY, skip it
 
                 return socket.inet_ntoa(struct.pack("<L", int(fields[2], 16)))
-    except:
+    except (IOError, ValueError) as e:
+        print(f"Error reading default gateway: {e}")
         return None
+
 
 def get_default_gateway_macos():
     """
@@ -59,17 +61,16 @@ def get_default_gateway_macos():
 
     Returns:
         str: The default gateway IP address if found, otherwise None.
-    
+
     Raises:
         subprocess.CalledProcessError: If there is an error executing the `netstat` command.
     """
     try:
-        p = subprocess.Popen(["netstat", "-nr"], stdout=subprocess.PIPE)
-        output = p.communicate()[0]
-        for line in output.splitlines():
-            if b"default" in line:
+        result = subprocess.run(["netstat", "-nr"], capture_output=True, text=True, check=True)
+        for line in result.stdout.splitlines():
+            if "default" in line:
                 gateway_ip = line.split()[1]
-                return gateway_ip.decode('utf-8')
+                return gateway_ip
     except subprocess.CalledProcessError as e:
+        print(f"Error executing netstat: {e}")
         return None
-
