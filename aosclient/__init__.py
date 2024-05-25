@@ -28,8 +28,8 @@ from urllib.parse import urlparse
 
 class AOSKeys:
     """
-    Constants representing JSON keys for AOS's API response related.
-    
+    Constants representing JSON keys for AOS's API response.
+
     Attributes:
         GNSS_FIXTIME (str): Key for GNSS fix time in the JSON response.
         GNSS_LATITUDE (str): Key for GNSS latitude in the JSON response.
@@ -37,25 +37,27 @@ class AOSKeys:
         GNSS_HEADING (str): Key for GNSS heading in the JSON response.
         GNSS_SPEED (str): Key for GNSS speed in the JSON response.
         GNSS_TAIP_ID (str): Key for GNSS TAIP ID in the JSON response.
+        WIFI_BANDS (list): List of WiFi bands.
     """
-    GNSS_FIXTIME="location.gnss.fixtime"
-    GNSS_LATITUDE="location.gnss.latitude"
-    GNSS_LONGITUDE="location.gnss.longitude"
-    GNSS_HEADING="location.gnss.heading"
-    GNSS_SPEED="location.gnss.speed"
-    GNSS_TAIP_ID="location.gnss.taipid"
-    WIFI_BANDS=["band2400", "band5400"]
+    GNSS_FIXTIME = "location.gnss.fixtime"
+    GNSS_LATITUDE = "location.gnss.latitude"
+    GNSS_LONGITUDE = "location.gnss.longitude"
+    GNSS_HEADING = "location.gnss.heading"
+    GNSS_SPEED = "location.gnss.speed"
+    GNSS_TAIP_ID = "location.gnss.taipid"
+    WIFI_BANDS = ["band2400", "band5400"]
 
+    @staticmethod
     def generate_wifi_key(ssid, band="band2400"):
         """
-        Generate a key for a Wifi AP in AOS's API JSON Respone
+        Generate a key for a WiFi AP in AOS's API JSON response.
 
         Args:
-            ssid (str): The ssid for the AP
-            band (str): Representation for the AP band
+            ssid (str): The SSID for the AP.
+            band (str): Representation for the AP band.
 
         Returns:
-            str: Key for the Wifi AP in the AOS JSON response
+            str: Key for the WiFi AP in the AOS JSON response.
         """
         return f'net.wifi.ssid.scan[{ssid}].{band}'
 
@@ -66,14 +68,16 @@ class AOSClient:
 
     Attributes:
         base_url (str): The base URL of the API.
-        username (str): Username used to generated authentication token.
-        password (str): Password used to generate authentication tocken.
+        username (str): Username used to generate authentication token.
+        password (str): Password used to generate authentication token.
         access_token (str): The access token used for authentication.
         headers (dict): Headers to be included in API requests.
+        response (dict): Cached response data from file.
+        verify_ssl (bool): Flag to verify SSL certificates.
     """
 
-    GET_API_ENDPOINT="/api/v1/db/get"
-    AUTH_API_ENDPOINT="/api/v1/auth/tokens"
+    GET_API_ENDPOINT = "/api/v1/db/get"
+    AUTH_API_ENDPOINT = "/api/v1/auth/tokens"
 
     def __init__(self, base_url, access_token=None, username=None, password=None):
         """
@@ -82,39 +86,39 @@ class AOSClient:
         Args:
             base_url (str): The base URL of the API.
             access_token (str): The access token used for authentication.
-            username (str): Username used to generated authentication token.
-            password (str): Password used to generate authentication tocken.
+            username (str): Username used to generate authentication token.
+            password (str): Password used to generate authentication token.
         """
         self.verify_ssl = False
-        try:
-            result = urlparse(base_url)
-            if all([result.scheme, result.netloc]):
-                self.base_url = base_url
-                self.response = None
-            elif os.path.isfile(base_url):
-                self.base_url = None
-                self.response = self.load_json_file(base_url).get('data')[0]
-        except ValueError:
-            return False
+        self.response = None
+
+        result = urlparse(base_url)
+        if all([result.scheme, result.netloc]):
+            self.base_url = base_url
+        elif os.path.isfile(base_url):
+            self.base_url = None
+            self.response = self.load_json_file(base_url).get('data', [None])[0]
+        else:
+            raise ValueError("Invalid base URL or file path provided")
+
         self.set_credentials(username, password)
         self.access_token = access_token
         self.headers = {
             "Content-Type": "application/vnd.api+json",
             "accept": "application/vnd.api+json",
-            "User-Agent": f"{__app_name__}/{__version__}"  # Add your custom user agent here
+            "User-Agent": f"{__name__}/{__version__}"  # Add your custom user agent here
         }
 
     def set_credentials(self, username, password):
         """
-        Sets the username and password used to generate the authentication token.
+        Set the username and password used to generate the authentication token.
 
         Args:
-            username (str): Username used to generated authentication token.
-            password (str): Password used to generate authentication tocken.
+            username (str): Username used to generate authentication token.
+            password (str): Password used to generate authentication token.
         """
         self.username = username
         self.password = password
-
 
     def generate_authentication_token(self):
         """
@@ -131,6 +135,7 @@ class AOSClient:
         if self.response is not None:
             self.access_token = "file access"
             return "file access"
+
         url = f"{self.base_url}{self.AUTH_API_ENDPOINT}"
         json_data = {
             "login": self.username,
@@ -153,7 +158,6 @@ class AOSClient:
 
         self.headers["Authorization"] = f"Bearer {self.access_token}"
         return self.access_token
-
 
     def get_data(self, fields):
         """
@@ -187,8 +191,8 @@ class AOSClient:
                 self.generate_authentication_token()
                 return self.get_data(fields)
             raise HTTPError(f"HTTP error occurred: {http_err}")
-        except RequestException as req_err:
-            raise RequestException(f"Request error occurred: {req_err}")
+        except requests.exceptions.RequestException as req_err:
+            raise requests.exceptions.RequestException(f"Request error occurred: {req_err}")
 
         try:
             data = response.json().get("data", {})
@@ -198,52 +202,25 @@ class AOSClient:
         except ValueError as val_err:
             raise ValueError(f"Value error occurred: {val_err}")
 
-
-    def load_json_file(self, file_path):
+    @staticmethod
+    def load_json_file(file_path):
         """
-        Loads a JSON file from a local file path.
+        Load a JSON file from a local file path.
 
-        Parameters:
-        - file_path (str): The path to the JSON configuration file.
+        Args:
+            file_path (str): The path to the JSON configuration file.
 
         Returns:
-        - dict or None: The parsed JSON data as a dictionary, or None if there was an error.
+            dict: The parsed JSON data as a dictionary.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            json.JSONDecodeError: If the file contains invalid JSON.
         """
         try:
             with open(file_path, "r") as file:
-                config_data = json.load(file)
-                return config_data
+                return json.load(file)
         except FileNotFoundError:
             raise FileNotFoundError(f'Failed to read AOS API JSON {file_path}')
         except json.JSONDecodeError as e:
-            raise json.JSONDecodeError(f'Failed to decode AOS API JSON: {file_path}') 
-
-
-    # def get_data(self, fields):
-    #     """
-    #     Send a GET request to the specified API endpoint and retrieve data.
-
-    #     Args:
-    #         endpoint (str): The API endpoint to send the request to.
-
-    #     Returns:
-    #         dict: The JSON response from the API, or None if an error occurs.
-    #     """
-    #     try:
-    #         url = f"{self.base_url}{self.GET_API_ENDPOINT}"
-    #         json_data = {
-    #             "fields": fields
-    #         }
-    #         response = requests.post(url, json=[json_data], headers=self.headers, verify=self.verify_ssl)
-    #         if response.status_code == 200:
-    #             return response.json().get("data", {})
-    #         elif response.status_code == 401:
-    #             self.generate_authentication_token()
-    #             return self.get_data(fields)
-    #         else:
-    #             print(f"Error: Request failed with status code {response.status_code}")
-    #             return None
-    #     except Exception as e:
-    #         print(f"Error: {e}")
-    #         return None
-
+            raise json.JSONDecodeError(f'Failed to decode AOS API JSON: {file_path}')
