@@ -4,26 +4,21 @@
 aosclient.py
 
 A client for Sierra Wireless Router's Web Service API
-
-
 """
 
 __author__ = "Joe Porcelli"
 __copyright__ = "Copyright 2024, Joe Porcelli"
-
 __license__ = "MIT"
 __version__ = "0.0.1"
 __email__ = "porcej@gmail.com"
 __status__ = "Development"
-__description__ = "A client for Sierra Wireless Router's Web Service API."
-__app_name__ = "AOSClient"
 
 
 import json
 import os
 import requests
-from urllib.error import HTTPError
 from urllib.parse import urlparse
+from requests.exceptions import HTTPError, RequestException
 
 
 class AOSKeys:
@@ -106,7 +101,7 @@ class AOSClient:
         self.headers = {
             "Content-Type": "application/vnd.api+json",
             "accept": "application/vnd.api+json",
-            "User-Agent": f"{__name__}/{__version__}"  # Add your custom user agent here
+            "User-Agent": "AOSClient/0.0.1"
         }
 
     def set_credentials(self, username, password):
@@ -147,8 +142,8 @@ class AOSClient:
             response.raise_for_status()  # Raises HTTPError for bad responses
         except HTTPError as http_err:
             raise HTTPError(f"HTTP error occurred: {http_err}")
-        except requests.exceptions.RequestException as req_err:
-            raise requests.exceptions.RequestException(f"Request error occurred: {req_err}")
+        except RequestException as req_err:
+            raise RequestException(f"Request error occurred: {req_err}")
 
         response_json = response.json()
         self.access_token = response_json.get("data", {}).get("access_token")
@@ -191,8 +186,8 @@ class AOSClient:
                 self.generate_authentication_token()
                 return self.get_data(fields)
             raise HTTPError(f"HTTP error occurred: {http_err}")
-        except requests.exceptions.RequestException as req_err:
-            raise requests.exceptions.RequestException(f"Request error occurred: {req_err}")
+        except RequestException as req_err:
+            raise RequestException(f"Request error occurred: {req_err}")
 
         try:
             data = response.json().get("data", {})
