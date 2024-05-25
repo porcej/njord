@@ -6,20 +6,18 @@ gnss.py
 GNSS Data Class.
 
 Class to model the state of a GNSS receiver.
-
 """
 
 __author__ = "Joe Porcelli"
 __copyright__ = "Copyright 2024, Joe Porcelli"
-
 __license__ = "MIT"
 __version__ = "0.0.1"
 __email__ = "porcej@gmail.com"
 __status__ = "Development"
 
-
-from datetime import datetime
-
+from datetime import datetime, timezone
+import json
+import requests
 
 class GNSS:
     """
@@ -28,7 +26,7 @@ class GNSS:
 
     TODO: 
         - Sanity Checks when converting to TAIP A
-        - Calculate Age of Data Paramter in TAIP Message
+        - Calculate Age of Data Parameter in TAIP Message
     """
     DEFAULT_SOURCE = 6
     DEFAULT_AGE = 2
@@ -38,11 +36,11 @@ class GNSS:
         """
         Constructor.
         """
-        self.fixtime = datetime.now().replace(microsecond=0)  # Time of GPS Fix
+        self.fixtime = datetime.utcnow().replace(microsecond=0)  # Time of GPS Fix
         self.latitude = 0.0                     # latitude as decimal degrees
-        self.lonitude = 0.0                     # longitude as decimal as degress
+        self.longitude = 0.0                    # longitude as decimal degrees
         self.altitude = 0.0                     # height above sea level as decimal meters (m)
-        self.speed = 0.0                        # ground speed as decimale meters per second (m/s)
+        self.speed = 0.0                        # ground speed as decimal meters per second (m/s)
         self.heading = 0.0                      # track degrees
         self.fix = "NO FIX"                     # fix type as string e.g. "3D"
         self.satellites_in_view = 0             # satellites in view as integer
@@ -52,11 +50,11 @@ class GNSS:
         self.vertical_dop = 0.0                 # vertical DOP as decimal
         self.horizontal_accuracy = 0.0          # horizontal accuracy as decimal meters (m)
         self.vertical_accuracy = 0.0            # vertical accuracy as decimal meters (m)
-        self.seperation  = 0.0                  # separation from ellipsoid (height - hMSL) as decimal meters (m)
+        self.separation = 0.0                   # separation from ellipsoid (height - hMSL) as decimal meters (m)
         self.differential_correction = 0        # DGPS correction status True/False
         self.differential_age = 0               # DGPS correction age as integer seconds
         self.differential_station = "N/A"       # DGPS station id
-        self.relative_position_heading = 0.0    # rover relative position heading in decimal degress
+        self.relative_position_heading = 0.0    # rover relative position heading in decimal degrees
         self.relative_position_length = 0.0     # rover relative position distance
         self.accuracy_heading = 0.0             # rover relative position heading accuracy
         self.accuracy_length = 0.0              # rover relative position distance accuracy
@@ -66,24 +64,26 @@ class GNSS:
         self.version_data = {}                  # dict of hardware, firmware and software versions
         self.sysmon_data = {}                   # dict of system monitor data (cpu and memory load, etc.)
         self.spectrum_data = []                 # list of spectrum data (spec, spn, res, ctr, pga)
-        self.comms_data = {}                    # dict of comms port utilisation (tx and rx loads)
+        self.comms_data = {}                    # dict of comms port utilization (tx and rx loads)
         self.source = self.DEFAULT_SOURCE       # int representing TAIP source
         self.age = self.DEFAULT_AGE             # int representing TAIP data age
-
+        self.talker_identifier='GP'             # Talker ID for NMEA sentences
 
     def set_basic_values(self, fixtime=None, latitude=0.0, longitude=0.0, heading=0.0, speed=0.0, taip_id="0000", source=None, age=None):
         """
         Set basic GNSS Values
 
         Args:
-        - fixtime (str): Time of GPS Fix
-        - latitude (float): Latitude as decimal degrees
-        - longitude (float): Longitude as decimal degrees
-        - heading (float): Track degrees
-        - speed (float): Ground speed as decimal meters per second (m/s)
-        - taip_id (str): TAIP ID String to identify this GPS Unit
+            fixtime (int or None): Time of GPS Fix as Unix timestamp (milliseconds), None for current time.
+            latitude (float): Latitude as decimal degrees.
+            longitude (float): Longitude as decimal degrees.
+            heading (float): Track degrees.
+            speed (float): Ground speed as decimal meters per second (m/s).
+            taip_id (str): TAIP ID String to identify this GPS Unit.
+            source (int or None): Source of data.
+            age (int or None): Age of data.
         """
-        self.fixtime = datetime.fromtimestamp(fixtime/100) if fixtime else datetime.now().replace(microsecond=0)
+        self.fixtime = datetime.fromtimestamp(fixtime / 1000) if fixtime else datetime.utcnow().replace(microsecond=0)
         self.latitude = latitude
         self.longitude = longitude
         self.heading = heading
@@ -94,10 +94,7 @@ class GNSS:
 
     def gps_time_of_day(self):
         """
-        Calculate the GPS Time of Day for a given Unix timestamp.
-
-        Args:
-            unix_timestamp (int): Unix timestamp representing a specific moment in time.
+        Calculate the GPS Time of Day for the instance's fix time.
 
         Returns:
             int: GPS Time of Day - Number of seconds since the previous midnight.
@@ -107,89 +104,53 @@ class GNSS:
         seconds_since_previous_midnight = (timestamp - previous_midnight).total_seconds()
         return int(seconds_since_previous_midnight)
 
-
     def get_message(self, message_type="TAIP_PV"):
+        """
+        Get the message in the specified format.
+
+        Args:
+            message_type (str): The type of message to generate ("TAIP_PV" or "NMEA").
+
+        Returns:
+            str: The generated message.
+
+        Raises:
+            ValueError: If an unknown message type is specified.
+        """
         if message_type == "TAIP_PV":
             return self.taip_pv_message()
         elif message_type == "NMEA":
-            pass
+            return self.generate_nmea_messages()
+        elif message_type == "NMEA_RMC":
+            return self.generate_nmea_rmc()
         else:
-            pass
-
-        raise ValueError(f'Unknown message type: {message_type}')
+            raise ValueError(f'Unknown message type: {message_type}')
 
     def taip_pv_message(self):
         """
         Generate a TAIP PV message from the current GNSS Data Set.
 
-        >RPV15714+3739438-1220384601512612;ID=1234;*7F<
-        >AAAAABBBCCCCCDDDDEEEEEFFFGGGHI<
-        
-        ID          | Meaning                       | # of Chars    | Units      
-        ============|===============================|===============|==========
-        >           | Start of Message Delimiter    | 1             |
-        R           | Response Qualifier            | 1             |
-        PV          | PV message Identifier         | 2             |
-        15714       | GPS Time of Day               | 5             | Sec
-        +3739438    | Latitude                      | 8             | Deg
-        -12203846   | Longitude                     | 9             | Deg
-        015         | Speed                         | 3             | MPH
-        126         | Heading                       | 3             | Deg
-        1           | Source of data                | 1             | See Source of Data Below
-        2           | Age of Data                   | 1             | See Age of Data Below
-        ;ID=1234    | Vehicle ID                    | 7             |
-        ;*7F        | Checksum                      | 3             |
-        <           | End of Message Delimiter      |               |
-
-        Source of Data
-        Value   | Meaning
-        ========|===============
-        0       | 2D GPS
-        1       | 3D GPS
-        3       | 2D DGPS
-        4       | 3d DGPS
-        5       | ------
-        6       | DR
-        7       | ------
-        8       | Degraded DR
-        9       | Unknown
-
-        Age of Data Indicator
-        Value   | Meaning
-        ========|==================
-        2       | Fresh (< 10 sec)
-        1       | Old (> 10 sec)
-        0       | Not available (Invalid Data)
-
         Returns:
             str: TAIP PV message.
         """
+        gps_tod = self.gps_time_of_day()  # GPS Time of Day
 
-        gps_tod = self.gps_time_of_day()    # GPS Time of Day
+        # Format latitude and longitude
+        lat_sign = '+' if self.latitude >= 0 else '-'
+        lat = f'{lat_sign}{abs(self.latitude) * 100000:07.0f}'
 
-        # The latitude formated as ABBBCCCCC where:
-        #    - A (+ or -): + for West Longitudes and - for East Longitudes
-        #    - BBB (int): whole number part of the latitude, left zero padded
-        #    - CCCCC (int): decimla part of the latitude, right zero padded 
-        sign = '+' if self.latitude >= 0 else '-'
-        lat = f'{sign}{abs(self.latitude)*100000:0>7.0f}'
+        long_sign = '+' if self.longitude >= 0 else '-'
+        longi = f'{long_sign}{abs(self.longitude) * 100000:08.0f}'
 
-        # The latitude formated as ABBBCCCCC where:
-        #   - A (+ or -): + for West Longitudes and - for East Longitudes
-        #   - BBB (int): whole number part of the latitude, left zero padded
-        #   - CCCCC (int): decimla part of the latitude, right zero padded 
-        sign = '+' if self.longitude >= 0 else '-'
-        longi = f'{sign}{abs(self.longitude)*100000:0>8.0f}'
+        # Convert speed from meters per second to miles per hour
+        speed = f'{self.speed * 2.2369362920544:03.0f}'
 
-        # Convert meter per second (m/s) to miles per hour (mph)
-        speed = f'{self.speed * 2.2369362920544:0>3.0f}'
+        # Format heading
+        heading = f'{self.heading:03.0f}'
 
-        # Formate heading by dropping decimale degrees and left padding three spaces
-        heading = f'{self.heading:0>3.0f}'
-
+        # Generate the message
         message = f">RPV{gps_tod}{lat}{longi}{speed}{heading}{self.source}{self.age};ID={self.taip_id};*"
         return f"{message}{self.hex_xor_checksum(message)}<"
-
 
     def hex_xor_checksum(self, string, encoding="utf-8"):
         """
@@ -200,7 +161,7 @@ class GNSS:
             encoding (str, optional): The encoding to use for converting the string to bytes. Default is UTF-8.
 
         Returns:
-            str: The hexadecimal representation of the XOR checksum value.
+            str: The 2-bit hexadecimal representation of the XOR checksum value.
         """
         # Convert the string to bytes using the specified encoding
         string_bytes = bytes(string, encoding=encoding)
@@ -213,4 +174,155 @@ class GNSS:
             checksum ^= byte
 
         # Convert the checksum to hexadecimal representation and return
-        return f'{checksum:x}'
+        return f'{checksum:02X}'
+
+    def generate_nmea_messages(self):
+        """
+        Generate all NMEA messages ($GxGGA, $GxGLL, $GxGSA, $GxGSV, $GxRMC, $GxVTG, $GxZDA).
+
+        Returns:
+            dict: A dictionary of all generated NMEA messages.
+        """
+        return {
+            f"{self.talker_identifier}GGA": self.generate_nmea_gga(),
+            f"{self.talker_identifier}GLL": self.generate_nmea_gll(),
+            f"{self.talker_identifier}GSA": self.generate_nmea_gsa(),
+            f"{self.talker_identifier}GSV": self.generate_nmea_gsv(),
+            f"{self.talker_identifier}RMC": self.generate_nmea_rmc(),
+            f"{self.talker_identifier}VTG": self.generate_nmea_vtg(),
+            f"{self.talker_identifier}ZDA": self.generate_nmea_zda()
+        }
+
+    def generate_nmea_gga(self):
+        """
+        Generate $GxGGA NMEA message.
+
+        Returns:
+            str: The $GxGGA message.
+        """
+        utc_time = self.fixtime.strftime('%H%M%S')
+        lat = self.convert_to_nmea_lat_long(self.latitude, 'lat')
+        lon = self.convert_to_nmea_lat_long(self.longitude, 'lon')
+        message = f"GPGGA,{utc_time},{lat},{lon},{self.fix},{self.satellites_in_position},{self.p_dop},{self.altitude},M,{self.separation},M,{self.differential_age},{self.differential_station}"
+        return f"${message}*{self.hex_xor_checksum(message)}"
+
+    def generate_nmea_gll(self):
+        """
+        Generate $GxGLL NMEA message.
+
+        Returns:
+            str: The $GxGLL message.
+        """
+        utc_time = self.fixtime.strftime('%H%M%S')
+        lat = self.convert_to_nmea_lat_long(self.latitude, 'lat')
+        lon = self.convert_to_nmea_lat_long(self.longitude, 'lon')
+        message = f"GPGLL,{lat},{lon},{utc_time},{self.fix}"
+        return f"${message}*{self.hex_xor_checksum(message)}"
+
+    def generate_nmea_gsa(self):
+        """
+        Generate $GxGSA NMEA message.
+
+        Returns:
+            str: The $GxGSA message.
+        """
+        message = f"GPGSA,A,{self.fix},{','.join(['' for _ in range(12)])},{self.p_dop},{self.horizontal_dop},{self.vertical_dop}"
+        return f"${message}*{self.hex_xor_checksum(message)}"
+
+    def generate_nmea_gsv(self):
+        """
+        Generate $GxGSV NMEA message.
+
+        Returns:
+            str: The $GxGSV message.
+        """
+        num_messages = (len(self.gsv_data) + 3) // 4
+        gsv_messages = []
+        for i in range(num_messages):
+            satellites = self.gsv_data[i*4:(i+1)*4]
+            satellite_data = ",".join([f"{s[1]},{s[2]},{s[3]},{s[4]}" for s in satellites])
+            message = f"GPGSV,{num_messages},{i+1},{self.satellites_in_view},{satellite_data}"
+            gsv_messages.append(f"${message}*{self.hex_xor_checksum(message)}")
+        return gsv_messages
+
+    def generate_nmea_rmc(self):
+        """
+        Generate $GxRMC NMEA message.
+
+        Returns:
+            str: The $GxRMC message.
+        """
+        utc_time = self.fixtime.strftime('%H%M%S')
+        lat = self.convert_to_nmea_lat_long(self.latitude, 'lat')
+        lon = self.convert_to_nmea_lat_long(self.longitude, 'lon')
+        date = self.fixtime.strftime('%d%m%y')
+        message = f"GPRMC,{utc_time},{self.fix},{lat},{lon},{self.speed * 1.94384},{self.heading},{date}"
+        return f"${message}*{self.hex_xor_checksum(message)}"
+
+    def generate_nmea_vtg(self):
+        """
+        Generate $GxVTG NMEA message.
+
+        Returns:
+            str: The $GxVTG message.
+        """
+        message = f"GPVTG,{self.heading},T,,M,{self.speed * 1.94384},N,{self.speed * 3.6},K"
+        return f"${message}*{self.hex_xor_checksum(message)}"
+
+    def generate_nmea_zda(self):
+        """
+        Generate $GxZDA NMEA message.
+
+        Returns:
+            str: The $GxZDA message.
+        """
+        utc_time = self.fixtime.strftime('%H%M%S.%f')[:-4]
+        day = self.fixtime.strftime('%d')
+        month = self.fixtime.strftime('%m')
+        year = self.fixtime.strftime('%Y')
+        message = f"ZDA,{utc_time},{day},{month},{year},,"
+        return self.pack_nmea_message(message)
+
+    def pack_nmea_message(self, message):
+        """
+        Packs a NMEA Message
+
+        Args:
+            message (str): Message to pack in the form of CCCX where "ccc" identifies the message type and "x" is the data
+
+        Returns:
+            str: Packed NMEA-0183 message
+        """
+        message = f'{self.talker_identifier}{message}'
+        return f"${message}*{self.hex_xor_checksum(message)}\r\n"
+
+    def convert_to_nmea_lat_long(self, value, type):
+        """
+        Convert decimal latitude/longitude to NMEA format.
+
+        Args:
+            value (float): The latitude or longitude in decimal degrees.
+            type (str): 'lat' for latitude or 'lon' for longitude.
+
+        Returns:
+            str: The NMEA formatted latitude or longitude.
+        """
+        degrees = int(value)
+        minutes = (abs(value) - abs(degrees)) * 60
+        if type == 'lat':
+            direction = 'N' if value >= 0 else 'S'
+            return f"{abs(degrees):02d}{minutes:07.4f},{direction}"
+        elif type == 'lon':
+            direction = 'E' if value >= 0 else 'W'
+            return f"{abs(degrees):03d}{minutes:07.4f},{direction}"
+        else:
+            raise ValueError("Type must be 'lat' or 'lon'.")
+
+# Example usage
+if __name__ == "__main__":
+    gnss = GNSS()
+    gnss.set_basic_values(latitude=37.7749, longitude=-122.4194)
+    print(gnss.fixtime)
+    nmea_messages = gnss.generate_nmea_messages()
+    for msg_type, msg in nmea_messages.items():
+        print(f"{msg_type}: {msg}")
