@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-
-STDOUTClientpy: a simple messenger that sends to the screen
-
+PipeClient.py: a simple messenger that sends to a stream
 """
 
 __author__ = "Joe Porcelli"
 __copyright__ = "Copyright 2024, Joe Porcelli"
-
 __license__ = "MIT"
 __version__ = "0.0.1"
 __email__ = "porcej@gmail.com"
@@ -16,44 +13,38 @@ __status__ = "Development"
 
 import sys
 
+
 class PipeClient:
     """
-    Pipe Client that connects to a server, sends a message, and listens for a response.
+    Pipe Client that connects to a pipe, sends a message, and listens for a response.
     """
 
     def __init__(self, pipe=sys.stdout, encoding='utf-8'):
         """
-        Initialize the pipe client with the specified server hostname and port.
-        
+        Initialize the pipe client with the specified pipe and encoding.
+
         Args:
-            server_host (str): The hostname or IP address of the server. Detaults to subnet broadcast
-            server_port (int): The port number of the server. Defaults to 21000
-            encoding (str): Endoding scheme to use for data stream
+            pipe (io.TextIOWrapper): The pipe to write messages to. Defaults to sys.stdout.
+            encoding (str): Encoding scheme to use for data stream. Defaults to 'utf-8'.
         """
         self.encoding = encoding
         self.pipe = pipe
-        print("Hello")
 
 
     def print(self, message):
         """
-        Sends a message to the pipe
-        
+        Sends a message to the pipe.
+
         Args:
             message (str): The message to send to the pipe.
         """
-        print("HERE")
-        print(message.encode(self.encoding), file=self.pipe)
-
+        print(message.encode(self.encoding).decode(self.encoding), file=self.pipe)
 
 
 # Usage example
 if __name__ == "__main__":
-    # client = UDPClient('127.0.0.1', 9000)
-    client = UDPClient('255.255.255.255', 21000)
+    client = PipeClient()
     message = "Hello, world!"
 
-    client.send_string(message)
-    print("Message sent to server.")
-    response = client.receive_string()
-    print(f"Received response from server: {response}")
+    client.print(message)
+    print("Message sent to pipe.")

@@ -14,9 +14,9 @@ __version__ = "0.0.1"
 __email__ = "porcej@gmail.com"
 __status__ = "Development"
 
-
 import socket
 import threading
+
 
 class TCPClient:
     """
@@ -26,11 +26,11 @@ class TCPClient:
     def __init__(self, server_host, server_port, encoding="utf-8"):
         """
         Initialize the TCP client with the specified server hostname and port.
-        
+
         Args:
             server_host (str): The hostname or IP address of the server.
             server_port (int): The port number of the server.
-            encoding (str): Endoding scheme to use for data stream
+            encoding (str): Encoding scheme to use for data stream. Defaults to 'utf-8'.
         """
         self.encoding = encoding
         self.server_host = server_host
@@ -41,7 +41,7 @@ class TCPClient:
     def send_message(self, message):
         """
         Send a message to the server.
-        
+
         Args:
             message (str): The message to send to the server.
         """
@@ -49,16 +49,8 @@ class TCPClient:
 
     def print(self, message):
         """
-        A wrapper for send_mesage
-        
-        Args:
-            message (str): The message to send to the server.
-        """
-        self.send_message(message)
-    def print(self, message):
-        """
-        A wrapper for send_mesage
-        
+        A wrapper for send_message.
+
         Args:
             message (str): The message to send to the server.
         """
@@ -73,9 +65,9 @@ class TCPClient:
                 response = self.socket.recv(1024)
                 if not response:
                     break
-                print(f"Received message from server: {response.decode(self.encoding)}")
+                return response.decode(self.encoding)
             except ConnectionResetError:
-                print("Connection closed by the server.")
+                raise ConnectionResetError("Connection closed by server")
                 break
 
     def start_receiving(self):
@@ -91,17 +83,17 @@ class TCPClient:
         """
         self.socket.close()
 
+
 # Usage example
 if __name__ == "__main__":
     client = TCPClient('127.0.0.1', 9000)
     client.start_receiving()
-    while True:
-        try:
+    try:
+        while True:
             message = input("Enter message to send to server: ")
             if message.lower() == 'exit':
                 client.close()
                 break
             client.send_message(message)
-        except KeyboardInterrupt:
-            client.close()
-            break
+    except KeyboardInterrupt:
+        client.close()

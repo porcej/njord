@@ -46,7 +46,7 @@ def get_default_gateway_linux():
 
                 return socket.inet_ntoa(struct.pack("<L", int(fields[2], 16)))
     except (IOError, ValueError) as e:
-        print(f"Error reading default gateway: {e}")
+        # print(f"Error converting timestamp to datetime: {e}")
         return None
 
 
@@ -72,5 +72,5 @@ def get_default_gateway_macos():
                 gateway_ip = line.split()[1]
                 return gateway_ip
     except subprocess.CalledProcessError as e:
-        print(f"Error executing netstat: {e}")
+        # raise subprocess.CalledProcessError(f"Error executing netstat: {e}")
         return None

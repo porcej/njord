@@ -14,13 +14,11 @@ __version__ = "0.0.1"
 __email__ = "porcej@gmail.com"
 __status__ = "Development"
 
-from NetTools.NetUtils import get_default_gateway_linux
-from NetTools.NetUtils import get_default_gateway_macos
-
+from NetTools.NetUtils import get_default_gateway_linux, get_default_gateway_macos
 from NetTools.TCPClient import TCPClient
-from NetTools.TCPServer import TCPServer 
+from NetTools.TCPServer import TCPServer
 from NetTools.UDPClient import UDPClient
-from NetTools.UDPServer import UDPServer 
+from NetTools.UDPServer import UDPServer
 from NetTools.PipeClient import PipeClient
 
 
