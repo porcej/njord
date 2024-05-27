@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-UDPClient.py: a simple UDP Client
+UDPClient.py: A simple UDP Client.
+
+This module defines a UDPClient class that can be used to connect to a UDP server, send messages, and listen for responses.
 """
 
 __author__ = "Joe Porcelli"
@@ -16,17 +18,26 @@ import socket
 
 class UDPClient:
     """
-    UDP Client that connects to a server, sends a message, and listens for a response.
+    UDP Client that connects to a server, sends messages, and listens for responses.
+
+    Attributes:
+        server_host (str): The hostname or IP address of the server.
+        server_port (int): The port number of the server.
+        encoding (str): The encoding scheme to use for the data stream.
+        socket (socket.socket): The socket used for the connection.
     """
 
-    def __init__(self, server_host='255.255.255.255', server_port=21000, encoding='utf-8'):
+    def __init__(self, server_host: str ='255.255.255.255', server_port: int =21000, encoding: str ='utf-8'):
         """
         Initialize the UDP client with the specified server hostname and port.
 
         Args:
             server_host (str): The hostname or IP address of the server. Defaults to subnet broadcast.
             server_port (int): The port number of the server. Defaults to 21000.
-            encoding (str): Encoding scheme to use for data stream. Defaults to 'utf-8'.
+            encoding (str): Encoding scheme to use for the data stream. Defaults to 'utf-8'.
+
+        Raises:
+            RuntimeError: If there is an error creating the socket.
         """
         self.encoding = encoding
         self.server_host = server_host
@@ -37,7 +48,7 @@ class UDPClient:
         except socket.error as e:
             raise RuntimeError(f"Failed to create socket: {e}")
 
-    def send_message(self, message):
+    def send_message(self, message: bytes):
         """
         Send a message to the server.
 
@@ -52,7 +63,7 @@ class UDPClient:
         except socket.error as e:
             raise RuntimeError(f"Failed to send message: {e}")
 
-    def receive_response(self):
+    def receive_response(self) -> bytes:
         """
         Listen for a response from the server.
 
@@ -68,9 +79,9 @@ class UDPClient:
         except socket.error as e:
             raise RuntimeError(f"Failed to receive response: {e}")
 
-    def send_string(self, message):
+    def send_string(self, message: str):
         """
-        Send a message to the server.
+        Send a string message to the server.
 
         Args:
             message (str): The message to send.
@@ -80,9 +91,9 @@ class UDPClient:
         """
         self.send_message(message.encode(self.encoding))
 
-    def receive_string(self):
+    def receive_string(self) -> str:
         """
-        Listen for a response from the server.
+        Listen for a string response from the server.
 
         Returns:
             str: The received message from the server, decoded as a string.
@@ -93,7 +104,7 @@ class UDPClient:
         response = self.receive_response()
         return response.decode(self.encoding)
 
-    def print(self, message):
+    def print(self, message: str):
         """
         A wrapper for send_string.
 

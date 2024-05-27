@@ -1,7 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NetTools: a simple UDP and TCP Client and Server
+NetTools Module.
+
+This module provides tools for creating simple UDP and TCP clients and servers, as well as pipe clients.
+It includes functions to get the default gateway for Linux and macOS systems.
+
+Classes and Functions:
+    - get_default_gateway_linux: Retrieve the default gateway for Linux.
+    - get_default_gateway_macos: Retrieve the default gateway for macOS.
+    - TCPClient: A simple TCP client.
+    - TCPServer: A simple TCP server.
+    - UDPClient: A simple UDP client.
+    - UDPServer: A simple UDP server.
+    - PipeClient: A simple pipe client for inter-process communication.
 """
 
 __author__ = "Joe Porcelli"

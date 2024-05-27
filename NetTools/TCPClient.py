@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-TCPClient.py: a simple TCP Client
+TCPClient.py: A simple TCP Client.
+
+This module defines a TCPClient class that can be used to connect to a TCP server, send messages, and listen for responses.
 """
 
 __author__ = "Joe Porcelli"
@@ -18,16 +20,25 @@ import threading
 class TCPClient:
     """
     TCP Client that connects to a server, allows sending messages, and listens for responses.
+
+    Attributes:
+        server_host (str): The hostname or IP address of the server.
+        server_port (int): The port number of the server.
+        encoding (str): The encoding scheme to use for the data stream.
+        socket (socket.socket): The socket used for the connection.
     """
 
-    def __init__(self, server_host, server_port, encoding="utf-8"):
+    def __init__(self, server_host: str, server_port: int, encoding: str = "utf-8"):
         """
         Initialize the TCP client with the specified server hostname and port.
 
         Args:
             server_host (str): The hostname or IP address of the server.
             server_port (int): The port number of the server.
-            encoding (str): Encoding scheme to use for data stream. Defaults to 'utf-8'.
+            encoding (str): Encoding scheme to use for the data stream. Defaults to 'utf-8'.
+
+        Raises:
+            RuntimeError: If there is an error creating or connecting the socket.
         """
         self.encoding = encoding
         self.server_host = server_host
@@ -38,7 +49,7 @@ class TCPClient:
         except socket.error as e:
             raise RuntimeError(f"Failed to create and connect socket: {e}")
 
-    def send_message(self, message):
+    def send_message(self, message: str):
         """
         Send a message to the server.
 
@@ -53,7 +64,7 @@ class TCPClient:
         except socket.error as e:
             raise RuntimeError(f"Failed to send message: {e}")
 
-    def print(self, message):
+    def print(self, message: str):
         """
         A wrapper for send_message.
 
@@ -90,6 +101,9 @@ class TCPClient:
     def close(self):
         """
         Close the connection to the server.
+
+        Raises:
+            RuntimeError: If there is an error closing the socket.
         """
         try:
             self.socket.close()
@@ -113,4 +127,3 @@ if __name__ == "__main__":
     except RuntimeError as e:
         print(f"An error occurred: {e}")
         client.close()
-

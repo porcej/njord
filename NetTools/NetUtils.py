@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NetUtils.py: A collection of miscellaneous network utilities
+NetUtils: A collection of miscellaneous network utilities.
+
+This module provides functions to retrieve the default gateway IP address for Linux and macOS systems.
 """
 
 __author__ = "Joe Porcelli"
@@ -16,7 +18,7 @@ import struct
 import subprocess
 
 
-def get_default_gateway_linux():
+def get_default_gateway_linux() -> str:
     """
     Read the default gateway directly from /proc/net/route.
 
@@ -39,14 +41,13 @@ def get_default_gateway_linux():
                 fields = line.strip().split()
                 if fields[1] != '00000000' or not int(fields[3], 16) & 2:
                     continue  # If not default route or not RTF_GATEWAY, skip it
-
                 return socket.inet_ntoa(struct.pack("<L", int(fields[2], 16)))
     except (IOError, ValueError) as e:
-        # print(f"Error converting timestamp to datetime: {e}")
+        print(f"Error retrieving default gateway on Linux: {e}")
         return None
 
 
-def get_default_gateway_macos():
+def get_default_gateway_macos() -> str:
     """
     Get the default gateway IP address on macOS.
 
@@ -68,5 +69,5 @@ def get_default_gateway_macos():
                 gateway_ip = line.split()[1]
                 return gateway_ip
     except subprocess.CalledProcessError as e:
-        # raise subprocess.CalledProcessError(f"Error executing netstat: {e}")
+        print(f"Error retrieving default gateway on macOS: {e}")
         return None

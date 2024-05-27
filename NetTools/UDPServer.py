@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-UDPClient.py: a simple UDP Server
+UDPServer.py: A simple UDP Server.
+
+This module defines a UDPServer class that accepts connections from multiple clients, handles incoming messages,
+and broadcasts messages to all connected clients.
 """
 
 __author__ = "Joe Porcelli"
@@ -16,10 +19,17 @@ import socket
 
 class UDPServer:
     """
-    UDP Server that accepts connections from multiple clients and sends a message to all of them.
+    UDP Server that accepts connections from multiple clients and sends messages to all of them.
+
+    Attributes:
+        host (str): The hostname or IP address to bind the server to.
+        port (int): The port number to bind the server to.
+        encoding (str): The encoding used for the data stream.
+        clients (dict): Dictionary to track connected clients.
+        socket (socket.socket): The socket used for the server.
     """
 
-    def __init__(self, host, port, encoding="utf-8"):
+    def __init__(self, host: str, port: int, encoding: str = "utf-8"):
         """
         Initialize the UDP server with the specified host and port.
 
@@ -27,6 +37,9 @@ class UDPServer:
             host (str): The hostname or IP address to bind the server to.
             port (int): The port number to bind the server to.
             encoding (str): The encoding used for the data stream. Defaults to 'utf-8'.
+
+        Raises:
+            RuntimeError: If there is an error creating or binding the socket.
         """
         self.host = host
         self.port = port
@@ -53,7 +66,7 @@ class UDPServer:
         except Exception as e:
             raise RuntimeError(f"An unexpected error occurred: {e}")
 
-    def handle_message(self, message, client_address):
+    def handle_message(self, message: bytes, client_address: tuple):
         """
         Handle an incoming message from a client.
 
@@ -65,7 +78,7 @@ class UDPServer:
             self.clients[client_address] = True
         self.send_to_all(message)
 
-    def send_to_all(self, message):
+    def send_to_all(self, message: bytes):
         """
         Send the specified message to all connected clients.
 
@@ -79,7 +92,7 @@ class UDPServer:
                 print(f"Error sending message to client {client_address}: {e}")
                 self.disconnect_client(client_address)
 
-    def disconnect_client(self, client_address):
+    def disconnect_client(self, client_address: tuple):
         """
         Disconnect a client.
 
@@ -90,7 +103,7 @@ class UDPServer:
             del self.clients[client_address]
             print(f"Client disconnected: {client_address}")
 
-    def get_connected_clients(self):
+    def get_connected_clients(self) -> list:
         """
         Get a list of connected client addresses.
 
