@@ -9,13 +9,13 @@ generating messages in various formats, and performing conversions and checks re
 Classes:
     GNSS: Represents a GNSS receiver's state and provides methods for data manipulation and message generation.
 """
+
 __author__ = "Joe Porcelli"
 __copyright__ = "Copyright 2024, Joe Porcelli"
 __license__ = "MIT"
 __version__ = "0.0.1"
 __email__ = "porcej@gmail.com"
 __status__ = "Development"
-
 
 from datetime import datetime
 from enum import Enum
