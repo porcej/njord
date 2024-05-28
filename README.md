@@ -1,7 +1,7 @@
 
 # NJORD
 
-**NJORD** is a Python application designed to augment a GNSS data stream based on known WiFi AP (Access Point) locations. This application is intended for use in a buoy setup to improve GNSS accuracy using WiFi APs or the AirlinkOS API.
+**NJORD** is a Python application designed to augment a GNSS data stream based on known WiFi AP (Access Point) locations. This application is intended for use in a buoy setup to improve GNSS accuracy using WiFi APs.  Initial GNSS information is obtained from the AirlinkOS API.
 
 ## Features
 - Updates GNSS state based on known WiFi AP locations.
