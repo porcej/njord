@@ -30,6 +30,64 @@ from gnss import GNSS
 import NetTools as NT
 
 
+class ConfigJsonKeys:
+    """
+    Constants representing JSON keys for the configuration file.
+
+    Attributes:
+    LAST_UPDATED (str): The key for the last updated timestamp.
+    API_USER (str): The key for the API user section.
+    USERNAME (str): The key for the username.
+    PASSWORD (str): The key for the password.
+    KNOWN_APS (str): The key for the known access points.
+    """
+    LAST_UPDATED = 'LastUpdated'
+    API_USER = 'ApiUser'
+    USERNAME = 'Username'
+    PASSWORD = 'Password'
+    KNOWN_APS = 'KnownAps'
+
+    @staticmethod
+    def get_username(config: dict) -> str:
+        """
+        Retrieve the username from the configuration dictionary.
+
+        Args:
+        config (dict): The configuration dictionary.
+
+        Returns:
+        str: The username from the configuration.
+
+        Raises:
+        KeyError: If the API_USER or USERNAME key is not found in the config.
+        """
+        try:
+            return config[ConfigJsonKeys.API_USER][ConfigJsonKeys.USERNAME]
+        except KeyError as e:
+            raise KeyError(f"Missing key in configuration: {e}")
+
+    @staticmethod
+    def get_password(config: dict) -> str:
+        """
+        Retrieve the password from the configuration dictionary.
+
+        Args:
+        config (dict): The configuration dictionary.
+
+        Returns:
+        str: The password from the configuration.
+
+        Raises:
+        KeyError: If the API_USER or PASSWORD key is not found in the config.
+        """
+        try:
+            return config[ConfigJsonKeys.API_USER][ConfigJsonKeys.PASSWORD]
+        except KeyError as e:
+            raise KeyError(f"Missing key in configuration: {e}")
+
+
+
+
 class NJORD:
     """
     A GNSS buoy that looks for access points with known locations and updates
@@ -83,7 +141,7 @@ class NJORD:
         Load and update the configuration file if needed.
         """
         if self.config_url is not None and self.config_update_interval is not None:
-            now = datetime.datetime.now()
+            now = datetime.now()
             if now > self.next_config_update:
                 # If we have a configuration update URL, check for updates
                 
@@ -92,7 +150,7 @@ class NJORD:
                     self.load_json_configuration()
                 except FileNotFoundError:
                     raise FileNotFoundError('Unable to read configuration file.')
-                self.next_config_update = datetime.datetime.now() + timedelta(seconds=self.config_update_interval)
+                self.next_config_update = datetime.now() + timedelta(seconds=self.config_update_interval)
 
 
     def send_gnss(self, message_type: str = 'TAIP_PV'):
@@ -161,10 +219,10 @@ class NJORD:
         try:
             data = response.json()
 
-            if 'last_updated' not in data:
-                raise ValueError("JSON file does not contain a 'last_updated' field.")
+            if ConfigJsonKeys.LAST_UPDATED not in data:
+                raise ValueError(f"JSON file does not contain a '{ConfigJsonKeys.LAST_UPDATED}' field.")
 
-            json_last_updated_time = datetime.fromisoformat(data['last_updated'])
+            json_last_updated_time = datetime.fromtimestamp(data[ConfigJsonKeys.LAST_UPDATED])
 
             if json_last_updated_time > self.known_access_point_update_time:
                 try:
@@ -199,11 +257,11 @@ class NJORD:
             raise json.JSONDecodeError(f"Error decoding JSON from the configuration file: {e}")
 
         try:
-            aps = config_data['KnownAps']
+            aps = config_data[ConfigJsonKeys.KNOWN_APS]
             self.access_points = {wn['Ssid']: [d for d in aps if d['Ssid'] == wn['Ssid']] for wn in aps}
-            self.set_known_access_point_update_from_timestamp(config_data['LastUpdated'])
-            self.aos_username = config_data['ApiUser']['Username']
-            self.aos_password = config_data['ApiUser']['Password']
+            self.set_known_access_point_update_from_timestamp(config_data[ConfigJsonKeys.LAST_UPDATED])
+            self.aos_username = ConfigJsonKeys.get_username(config_data)
+            self.aos_password = ConfigJsonKeys.get_password(config_data)
         except KeyError as e:
             raise KeyError(f"Missing required key in configuration data: {e}")
 
