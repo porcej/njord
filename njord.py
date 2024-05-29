@@ -222,7 +222,7 @@ class NJORD:
             if ConfigJsonKeys.LAST_UPDATED not in data:
                 raise ValueError(f"JSON file does not contain a '{ConfigJsonKeys.LAST_UPDATED}' field.")
 
-            json_last_updated_time = datetime.fromisoformat(data[ConfigJsonKeys.LAST_UPDATED])
+            json_last_updated_time = datetime.fromtimestamp(data[ConfigJsonKeys.LAST_UPDATED])
 
             if json_last_updated_time > self.known_access_point_update_time:
                 try:
