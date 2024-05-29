@@ -141,7 +141,7 @@ class NJORD:
         Load and update the configuration file if needed.
         """
         if self.config_url is not None and self.config_update_interval is not None:
-            now = datetime.datetime.now()
+            now = datetime.now()
             if now > self.next_config_update:
                 # If we have a configuration update URL, check for updates
                 
@@ -150,7 +150,7 @@ class NJORD:
                     self.load_json_configuration()
                 except FileNotFoundError:
                     raise FileNotFoundError('Unable to read configuration file.')
-                self.next_config_update = datetime.datetime.now() + timedelta(seconds=self.config_update_interval)
+                self.next_config_update = datetime.now() + timedelta(seconds=self.config_update_interval)
 
 
     def send_gnss(self, message_type: str = 'TAIP_PV'):
