@@ -163,9 +163,6 @@ class NJORD:
         message = self.generate_location_message(message_type)
         for messenger in self.messengers:
             messenger.print(message)
-        message = self.generate_location_message('NMEA_RMC')
-        for messenger in self.messengers:
-            messenger.print(message)
 
     def add_messenger(self, messenger: object):
         """
