@@ -118,20 +118,25 @@ class NJORD:
         """
         self.messengers = []
         self.access_points = {}
+        self.file_creds = True
         self.next_config_update = datetime(1970, 1, 1, 0, 0, 0) # set to the distant past
         self.config_update_interval = config_update_interval
         self.set_known_access_point_update_from_timestamp(0)
         self.config_local_path = config_file_path
         self.config_url = config_url
-        try:
-            self.load_json_configuration()
-        except FileNotFoundError:
-            pass        
 
-        self.update_config()
+        if aos_username is not None and aos_password is not None:
+            self.file_creds = False
 
         # Create our AOS API Client
         self.AOSClient = AOSClient(base_url=aos_url, access_token=None, username=aos_username, password=aos_password)
+        
+        try:
+            self.load_json_configuration()
+        except FileNotFoundError:
+            pass
+
+        self.update_config()
 
         # Authenticate and get access token
         self.AOSClient.generate_authentication_token()
@@ -257,8 +262,9 @@ class NJORD:
             aps = config_data[ConfigJsonKeys.KNOWN_APS]
             self.access_points = {wn['Ssid']: [d for d in aps if d['Ssid'] == wn['Ssid']] for wn in aps}
             self.set_known_access_point_update_from_timestamp(config_data[ConfigJsonKeys.LAST_UPDATED])
-            self.aos_username = ConfigJsonKeys.get_username(config_data)
-            self.aos_password = ConfigJsonKeys.get_password(config_data)
+            if self.file_creds:
+                self.AOSClient.set_credentials(ConfigJsonKeys.get_username(config_data),
+                                               ConfigJsonKeys.get_password(config_data))
         except KeyError as e:
             raise KeyError(f"Missing required key in configuration data: {e}")
 
