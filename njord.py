@@ -207,7 +207,7 @@ class NJORD:
         except KeyError as e:
             raise KeyError(f"Missing required key in configuration data: {e}")
 
-    def check_for_known_access_points(self, aos_resp: dict) -> dict | None:
+    def check_for_known_access_points(self, aos_resp: dict) -> dict:
         """
         Checks if a known access point is in range and returns its position.
 
