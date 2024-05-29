@@ -367,6 +367,7 @@ def main():
     parser.add_argument("-p", "--password", type=str, help="Password for AOS authentication. - overrides config file")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output")
     parser.add_argument("-b", "--beacon", type=int, help="Sets the beacon interval in seconds")
+    parser.add_argument("-m", "--messagetype", choices=['taip_pv', 'nmea_rmc', 'all'], default='taip_pv', help="Specify the message type (taip, nmea, or both). Default is 'taip'.")
     parser.add_argument("-i", "--update", type=int, help="Sets the config update internal in seconds")
 
     args = parser.parse_args()
@@ -397,18 +398,17 @@ def main():
     if args.stdout:
         app.add_messenger(NT.PipeClient())
 
-    app.send_gnss()
 
     update_config_time = time
 
     if args.beacon is not None:
         while(1):
-            app.send_gnss()
+            app.send_gnss(message_type=args.messagetype.upper())
             app.update_config()
             time.sleep(args.beacon)
 
     else:
-        app.send_gnss()
+        app.send_gnss(message_type=args.messagetype.upper())
 
 
 
