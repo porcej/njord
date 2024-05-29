@@ -160,7 +160,7 @@ class AOSClient:
             raise RequestException(f"Request error occurred: {req_err}")
 
         try:
-            data = response.json().get("data", {})
+            data = response.json().get("data", {})[0]
             if not data:
                 raise ValueError("Failed to retrieve data: No data found in response")
             return data
