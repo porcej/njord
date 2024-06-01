@@ -32,7 +32,7 @@ options:
                         URL to acquire net config files.
   -a AOSURL, --aosurl AOSURL
                         Base URL for AOS API, defaults to "https://192.168.1.1"
-  -g, --gateway         Sets the AOS API URL to the network's gateway. Overrides --aosurl.
+  -g, --gateway         Sets the AOS API URL to the network&#96;s gateway. Overrides --aosurl.
   -U UDPPORT, --udpport UDPPORT
                         UDP port to send GNSS broadcast messages (default: 21000)
   -s, --stdout          Prints TAIP messages to Standard Output
