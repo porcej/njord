@@ -356,24 +356,84 @@ def parse_arguments():
         argparse.Namespace: Parsed arguments.
     """
     parser = argparse.ArgumentParser(description='NJORD GNSS Buoy')
-    parser.add_argument('-c', '--config', default='data/config.json', help='File path for local config file.')
-    parser.add_argument('-C', '--config_url', help='URL to acquire net config files.')
-
-    parser.add_argument("-a", "--aosurl", default="https://192.168.1.1",
-                        help='Base URL for AOS API, defaults to "https://192.168.1.1", if a file path is provided, tries to read the file as a proxy API')
-    parser.add_argument("-g", "--gateway", action="store_true", help="Sets the AOS API URL to the network's gateway.  Overrides --aosurl.")
-
-    parser.add_argument('-U', '--udpport', type=int, default=21000, help='UDP port to send GNSS broadcast messages')
-    parser.add_argument("-s", "--stdout", action='store_true', help="Prints TAIP messages to Standard Output")
-    parser.add_argument('-t', '--tcpport', type=int, default=9011, help='TCP Port to send GNSS messages')
-    parser.add_argument('-T', '--tcphost', help='TCP Server to send messages.')
-
-    parser.add_argument("-u", "--username", type=str, help="Username for AOS authentication. - overrides config file")
-    parser.add_argument("-p", "--password", type=str, help="Password for AOS authentication. - overrides config file")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output")
-    parser.add_argument("-b", "--beacon", type=int, help="Sets the beacon interval in seconds")
-    parser.add_argument("-m", "--messagetype", choices=['taip_pv', 'nmea_rmc', 'all'], default='taip_pv', help="Specify the message type (taip, nmea, or both). Default is 'taip'.")
-    parser.add_argument("-i", "--update", type=int, help="Sets the config update internal in seconds")
+    parser.add_argument(
+        '-c', '--config',
+        default='data/config.json', help='File path for local config file.'
+    )
+    parser.add_argument(
+        '-C', '--config_url',
+        help='URL to acquire net config files.'
+    )
+    parser.add_argument(
+        '-a', '--aosurl',
+        default='https://192.168.1.1',
+        help='Base URL for AOS API, defaults to "https://192.168.1.1", if a file path is provided, tries to read the file as a proxy API.'
+    )
+    parser.add_argument(
+        "-g", "--gateway",
+        action="store_true",
+        help="Sets the AOS API URL to the network's gateway.  Overrides --aosurl."
+    )
+    parser.add_argument(
+        '-U', '--udpport',
+        type=int,
+        default=21000,
+        help='UDP port to send GNSS broadcast messages'
+    )
+    parser.add_argument(
+        "-s", "--stdout",
+        action='store_true',
+        help="Prints TAIP messages to Standard Output"
+    )
+    parser.add_argument(
+        '-t', '--tcpport',
+        type=int,
+        default=9011,
+        help='TCP Port to send GNSS messages.'
+    )
+    parser.add_argument(
+        '-T', '--tcphost',
+        help='TCP Server to send messages.'
+    )
+    parser.add_argument(
+        '-u', '--username',
+        type=str,
+        help='Username for AOS authentication. - overrides config file'
+    )
+    parser.add_argument(
+        '-p', '--password',
+        type=str,
+        help='Password for AOS authentication. - overrides config file'
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Print verbose output'
+    )
+    parser.add_argument(
+        '-b', '--beacon',
+        type=int,
+        help='Sets the beacon interval in seconds'
+    )
+    parser.add_argument(
+        '-M', '--messagetype',
+        choices=['taip_pv', 'nmea_rmc', 'all'],
+        default='taip_pv',
+        help='Specify the message type (taip_pv, nmea_rmc, or all). Default is "taip_rmc".'
+    )
+    parser.add_argument(
+        "-i", "--update",
+        type=int,
+        help='Sets the config update interval in seconds.'
+    )
+    parser.add_argument(
+        '-m', '--message', 
+        action='append', 
+        nargs=5, 
+        metavar=('MSG_TYPE', 'BEACON_INTERVAL', 'PROTOCOL', 'PORT', 'HOST'), 
+        required=True, 
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), BEACON_INTERVAL (int), PROTOCOL (TCP/UDP), PORT (int), HOST (required if PROTOCOL is TCP)'
+    )
 
     return parser.parse_args()
 
