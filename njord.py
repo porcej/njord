@@ -377,7 +377,6 @@ def parse_arguments():
     parser.add_argument(
         '-U', '--udpport',
         type=int,
-        default=21000,
         help='UDP port to send GNSS broadcast messages'
     )
     parser.add_argument(
@@ -388,7 +387,6 @@ def parse_arguments():
     parser.add_argument(
         '-t', '--tcpport',
         type=int,
-        default=9011,
         help='TCP Port to send GNSS messages.'
     )
     parser.add_argument(
@@ -437,11 +435,64 @@ def parse_arguments():
 
     return parser.parse_args()
 
+def validate_and_process_arguments(message_list):
+    """
+    Validates and processes the command line arguments.
+
+    Args:
+        message_list (list of dicts): List of messages from argparser.
+
+    Returns:
+        list of dict: List of message parameters.
+
+    Raises:
+        ValueError: If the any of the message parameters are not valid.
+    """
+    messages = []
+    for msg in message_list:
+        msg_type, beacon_interval, protocol, port, host = msg
+        msg_type = msg_type.upper()
+        protocol = protocol.upper()
+        
+        if msg_type not in ['TAIP_PV', 'NMEA_RMC']:
+            raise ValueError(f"Invalid message type: {msg_type}")
+        
+        try:
+            beacon_interval = int(beacon_interval)
+        except ValueError:
+            raise ValueError(f"Beacon interval must be an integer: {beacon_interval}")
+
+        if protocol not in ['TCP', 'UDP']:
+            raise ValueError(f"Invalid protocol: {protocol}")
+
+        try:
+            port = int(port)
+        except ValueError:
+            raise ValueError(f"Port must be an integer: {port}")
+
+        if protocol == 'TCP' and not host:
+            raise ValueError("Host must be provided if protocol is TCP")
+        
+        if protocol == 'UDP':
+            host = None
+        
+        messages.append({
+            'msg_type': msg_type,
+            'beacon_interval': beacon_interval,
+            'protocol': protocol,
+            'port': port,
+            'host': host
+        })
+    
+    return messages
+
 def main():
     """
     The main function to parse arguments and initialize the NJORD application.
     """
     args = parse_arguments()
+
+    messages = validate_and_process_arguments(args.message)
 
     aos_url = args.aosurl
 
