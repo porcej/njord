@@ -348,12 +348,14 @@ class NJORD:
         except Exception as e:
             raise Exception(f"An unexpected error occurred: {e}")
 
+def parse_arguments():
+    """
+    Parses command line arguments.
 
-def main():
+    Returns:
+        argparse.Namespace: Parsed arguments.
     """
-    The main function to parse arguments and initialize the NJORD application.
-    """
-    parser = argparse.ArgumentParser(description='NJORD GNSS Buoy Configuration')
+    parser = argparse.ArgumentParser(description='NJORD GNSS Buoy')
     parser.add_argument('-c', '--config', default='data/config.json', help='File path for local config file.')
     parser.add_argument('-C', '--config_url', help='URL to acquire net config files.')
 
@@ -373,7 +375,13 @@ def main():
     parser.add_argument("-m", "--messagetype", choices=['taip_pv', 'nmea_rmc', 'all'], default='taip_pv', help="Specify the message type (taip, nmea, or both). Default is 'taip'.")
     parser.add_argument("-i", "--update", type=int, help="Sets the config update internal in seconds")
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+def main():
+    """
+    The main function to parse arguments and initialize the NJORD application.
+    """
+    args = parse_arguments()
 
     aos_url = args.aosurl
 
