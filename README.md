@@ -20,37 +20,52 @@ pip install -r requirements.txt
 You can run the NJORD application using the command line. Below are the available options:
 
 ```bash
-usage: NJORD [-h] [-c CONFIG] [-C CONFIG_URL] [-a AOSURL] [-g] [-U UDPPORT] [-s] [-t TCPPORT] [-T TCPHOST] [-u USERNAME] [-p PASSWORD] [-v] [-b BEACON] [-i UPDATE] [-l {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+usage: njord.py [-h] [-c CONFIG] [-C CONFIG_URL] [-a AOSURL] [-g] [-U UDPPORT]
+                [-s] [-t TCPPORT] [-T TCPHOST] [-u USERNAME] [-p PASSWORD]
+                [-v] [-B BEACON] [-M {taip_pv,nmea_rmc,all}] [-i UPDATE]
+                [-m MSG_TYPE PROTOCOL PORT HOST] [-b MSG_TYPE PORT]
 
-NJORD GNSS Buoy Configuration
+NJORD - A buoy to augment a GNSS data stream based on known Wifi AP locations.
 
 options:
   -h, --help            show this help message and exit
   -c CONFIG, --config CONFIG
-                        File path for local config file. (default: data/config.json)
+                        File path for local config file.
   -C CONFIG_URL, --config_url CONFIG_URL
                         URL to acquire net config files.
   -a AOSURL, --aosurl AOSURL
-                        Base URL for AOS API, defaults to "https://192.168.1.1"
-  -g, --gateway         Sets the AOS API URL to the network&#96;s gateway. Overrides --aosurl.
+                        Base URL for AOS API, defaults to
+                        "https://192.168.1.1", if a file path is provided,
+                        tries to read the file as a proxy API.
+  -g, --gateway         Sets the AOS API URL to the network\'s gateway.
+                        Overrides --aosurl.
   -U UDPPORT, --udpport UDPPORT
-                        UDP port to send GNSS broadcast messages (default: 21000)
+                        UDP port to send GNSS broadcast messages
   -s, --stdout          Prints TAIP messages to Standard Output
   -t TCPPORT, --tcpport TCPPORT
-                        TCP Port to send GNSS messages (default: 9011)
+                        TCP Port to send GNSS messages.
   -T TCPHOST, --tcphost TCPHOST
                         TCP Server to send messages.
   -u USERNAME, --username USERNAME
-                        Username for AOS authentication. - overrides config file
+                        Username for AOS authentication. - overrides config
+                        file
   -p PASSWORD, --password PASSWORD
-                        Password for AOS authentication. - overrides config file
+                        Password for AOS authentication. - overrides config
+                        file
   -v, --verbose         Print verbose output
-  -b BEACON, --beacon BEACON
+  -B BEACON, --beacon BEACON
                         Sets the beacon interval in seconds
+  -M {taip_pv,nmea_rmc,all}, --messagetype {taip_pv,nmea_rmc,all}
+                        Specify the message type (taip_pv, nmea_rmc, or all).
+                        Default is "taip_rmc".
   -i UPDATE, --update UPDATE
-                        Sets the config update internal in seconds
-  -l {DEBUG,INFO,WARNING,ERROR,CRITICAL}, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
-                        Set the logging level (default: INFO)
+                        Sets the config update interval in seconds.
+  -m MSG_TYPE PROTOCOL PORT HOST, --message MSG_TYPE PROTOCOL PORT HOST
+                        Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV),
+                        PROTOCOL (TCP/UDP), PORT (int), HOST (str)
+  -b MSG_TYPE PORT, --broadcast-message MSG_TYPE PORT
+                        Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PORT
+                        (int)
 ```
 
 ## Example
