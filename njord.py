@@ -19,9 +19,11 @@ __description__ = "A buoy to augment a GNSS data stream based on known Wifi AP l
 __app_name__ = "NJORD"
 
 import argparse
+import heapq
 import json
 import os
 import requests
+import sys
 import time
 from datetime import datetime, timedelta
 from requests.exceptions import HTTPError, RequestException
@@ -35,11 +37,11 @@ class ConfigJsonKeys:
     Constants representing JSON keys for the configuration file.
 
     Attributes:
-    LAST_UPDATED (str): The key for the last updated timestamp.
-    API_USER (str): The key for the API user section.
-    USERNAME (str): The key for the username.
-    PASSWORD (str): The key for the password.
-    KNOWN_APS (str): The key for the known access points.
+        LAST_UPDATED (str): The key for the last updated timestamp.
+        API_USER (str): The key for the API user section.
+        USERNAME (str): The key for the username.
+        PASSWORD (str): The key for the password.
+        KNOWN_APS (str): The key for the known access points.
     """
     LAST_UPDATED = 'LastUpdated'
     API_USER = 'ApiUser'
@@ -53,13 +55,13 @@ class ConfigJsonKeys:
         Retrieve the username from the configuration dictionary.
 
         Args:
-        config (dict): The configuration dictionary.
+            config (dict): The configuration dictionary.
 
         Returns:
-        str: The username from the configuration.
+            str: The username from the configuration.
 
         Raises:
-        KeyError: If the API_USER or USERNAME key is not found in the config.
+            KeyError: If the API_USER or USERNAME key is not found in the config.
         """
         try:
             return config[ConfigJsonKeys.API_USER][ConfigJsonKeys.USERNAME]
@@ -72,13 +74,13 @@ class ConfigJsonKeys:
         Retrieve the password from the configuration dictionary.
 
         Args:
-        config (dict): The configuration dictionary.
+            config (dict): The configuration dictionary.
 
         Returns:
-        str: The password from the configuration.
+            str: The password from the configuration.
 
         Raises:
-        KeyError: If the API_USER or PASSWORD key is not found in the config.
+            KeyError: If the API_USER or PASSWORD key is not found in the config.
         """
         try:
             return config[ConfigJsonKeys.API_USER][ConfigJsonKeys.PASSWORD]
@@ -115,6 +117,7 @@ class NJORD:
             config_url (str): URL for configuration file updates.
             aos_username (str): AOS Username for authentication.
             aos_password (str): AOS Password for authentication.
+            gnss (object): Current GNSS Data, invalidated after every request
         """
         self.messengers = []
         self.access_points = {}
@@ -124,6 +127,7 @@ class NJORD:
         self.set_known_access_point_update_from_timestamp(0)
         self.config_local_path = config_file_path
         self.config_url = config_url
+        self.gnss = None
 
         if aos_username is not None and aos_password is not None:
             self.file_creds = False
@@ -158,16 +162,15 @@ class NJORD:
                 self.next_config_update = datetime.now() + timedelta(seconds=self.config_update_interval)
 
 
-    def send_gnss(self, message_type: str = 'TAIP_PV'):
+    def send_gnss(self):
         """
         Sends the GNSS message to all registered messengers.
 
-        Args:
-            message_type (str): The type of message to generate. Default is 'TAIP_PV'.
         """
-        message = self.generate_location_message(message_type)
+        self.get_location()
         for messenger in self.messengers:
-            messenger.print(message)
+            message  = self.gnss.get_message(message_type=messenger['message_type'])
+            messenger['carrier'].print(message)
 
     def add_messenger(self, messenger: object):
         """
@@ -178,7 +181,7 @@ class NJORD:
         """
         self.messengers.append(messenger)
         try:
-            self.messengers[-1].start()
+            self.messengers[-1]['carrier'].start()
         except AttributeError:
             pass
 
@@ -305,15 +308,9 @@ class NJORD:
         except Exception as e:
             raise Exception(f"An unexpected error occurred: {e}")
 
-    def generate_location_message(self, message_type: str = 'TAIP_PV') -> str:
+    def get_location(self):
         """
-        Sets position from Access Point if available or uses AOS API location if no Wifi APs are available.
-
-        Args:
-            message_type (str): The type of message to generate. Default is 'TAIP_PV'.
-
-        Returns:
-            str: The generated location message.
+        Sets position (gnss) from Access Point if available or uses AOS API location if no Wifi APs are available.
 
         Raises:
             KeyError: If required keys are missing in the AOS API response.
@@ -341,39 +338,182 @@ class NJORD:
                                       heading=aos_resp[AOSKeys.GNSS_HEADING],
                                       speed=aos_resp[AOSKeys.GNSS_SPEED],
                                       taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID])
+            self.gnss = gnss
 
-            return gnss.get_message(message_type=message_type)
         except KeyError as e:
             raise KeyError(f"Missing required key in AOS response data: {e}")
         except Exception as e:
             raise Exception(f"An unexpected error occurred: {e}")
 
+def parse_arguments():
+    """
+    Parses command line arguments.
+
+    Returns:
+        argparse.Namespace: Parsed arguments.
+    """
+    parser = argparse.ArgumentParser(description=f'{__app_name__} - {__description__}')
+    parser.add_argument(
+        '-c', '--config',
+        default='data/config.json',
+        help='File path for local config file.'
+    )
+    parser.add_argument(
+        '-C', '--config_url',
+        help='URL to acquire net config files.'
+    )
+    parser.add_argument(
+        '-a', '--aosurl',
+        default='https://192.168.1.1',
+        help='Base URL for AOS API, defaults to "https://192.168.1.1", if a file path is provided, tries to read the file as a proxy API.'
+    )
+    parser.add_argument(
+        "-g", "--gateway",
+        action="store_true",
+        help="Sets the AOS API URL to the network's gateway.  Overrides --aosurl."
+    )
+    parser.add_argument(
+        '-U', '--udpport',
+        type=int,
+        help='UDP port to send GNSS broadcast messages'
+    )
+    parser.add_argument(
+        "-s", "--stdout",
+        action='store_true',
+        help="Prints TAIP messages to Standard Output"
+    )
+    parser.add_argument(
+        '-t', '--tcpport',
+        type=int,
+        help='TCP Port to send GNSS messages.'
+    )
+    parser.add_argument(
+        '-T', '--tcphost',
+        help='TCP Server to send messages.'
+    )
+    parser.add_argument(
+        '-u', '--username',
+        type=str,
+        help='Username for AOS authentication. - overrides config file'
+    )
+    parser.add_argument(
+        '-p', '--password',
+        type=str,
+        help='Password for AOS authentication. - overrides config file'
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Print verbose output'
+    )
+    parser.add_argument(
+        '-B', '--beacon',
+        type=int,
+        help='Sets the beacon interval in seconds'
+    )
+    parser.add_argument(
+        '-M', '--messagetype',
+        choices=['taip_pv', 'nmea_rmc', 'all'],
+        default='taip_pv',
+        help='Specify the message type (taip_pv, nmea_rmc, or all). Default is "taip_rmc".'
+    )
+    parser.add_argument(
+        "-i", "--update",
+        type=int,
+        help='Sets the config update interval in seconds.'
+    )
+    parser.add_argument(
+        '-m', '--message', 
+        action='append', 
+        nargs=4, 
+        metavar=('MSG_TYPE', 'PROTOCOL', 'PORT', 'HOST'),
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PROTOCOL (TCP/UDP), PORT (int), HOST (str)'
+    )
+    parser.add_argument(
+        '-b', '--broadcast-message', 
+        action='append', 
+        nargs=2, 
+        metavar=('MSG_TYPE', 'PORT'),
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PORT (int)'
+    )
+
+    return parser.parse_args()
+
+def validate_and_process_message_arguments(args):
+    """
+    Validates and processes the command line arguments.
+
+    Args:
+        Args (object): Args object.
+
+    Returns:
+        list of dict: List of message parameters.
+
+    Raises:
+        ValueError: If the any of the message parameters are not valid.
+    """
+    messages = []
+    if args.message is not None:
+        for msg in args.message:
+            msg_type, protocol, port, host = msg
+            msg_type = msg_type.upper()
+            protocol = protocol.upper()
+            
+            if msg_type not in ['TAIP_PV', 'NMEA_RMC']:
+                raise ValueError(f"Invalid message type: {msg_type}")
+            
+            if protocol not in ['TCP', 'UDP']:
+                raise ValueError(f"Invalid protocol: {protocol}")
+
+            try:
+                port = int(port)
+            except ValueError:
+                raise ValueError(f"Port must be an integer: {port}")
+
+            if host is None:
+                raise ValueError("Host must be provided")
+            
+             
+            messages.append({
+                'msg_type': msg_type,
+                'protocol': protocol,
+                'port': port,
+                'host': host
+            })
+
+    if args.broadcast_message is not None:
+        for msg in args.broadcast_message:
+            msg_type, port = msg
+            msg_type = msg_type.upper()
+            
+            if msg_type not in ['TAIP_PV', 'NMEA_RMC']:
+                raise ValueError(f"Invalid message type: {msg_type}")
+            
+            try:
+                port = int(port)
+            except ValueError:
+                raise ValueError(f"Port must be an integer: {port}")
+        
+            messages.append({
+                'msg_type': msg_type,
+                'protocol': 'UDP',
+                'port': port,
+                'host': '255.255.255.255'
+            })
+    return messages
 
 def main():
     """
     The main function to parse arguments and initialize the NJORD application.
     """
-    parser = argparse.ArgumentParser(description='NJORD GNSS Buoy Configuration')
-    parser.add_argument('-c', '--config', default='data/config.json', help='File path for local config file.')
-    parser.add_argument('-C', '--config_url', help='URL to acquire net config files.')
+    args = parse_arguments()
+    
 
-    parser.add_argument("-a", "--aosurl", default="https://192.168.1.1",
-                        help='Base URL for AOS API, defaults to "https://192.168.1.1", if a file path is provided, tries to read the file as a proxy API')
-    parser.add_argument("-g", "--gateway", action="store_true", help="Sets the AOS API URL to the network's gateway.  Overrides --aosurl.")
-
-    parser.add_argument('-U', '--udpport', type=int, default=21000, help='UDP port to send GNSS broadcast messages')
-    parser.add_argument("-s", "--stdout", action='store_true', help="Prints TAIP messages to Standard Output")
-    parser.add_argument('-t', '--tcpport', type=int, default=9011, help='TCP Port to send GNSS messages')
-    parser.add_argument('-T', '--tcphost', help='TCP Server to send messages.')
-
-    parser.add_argument("-u", "--username", type=str, help="Username for AOS authentication. - overrides config file")
-    parser.add_argument("-p", "--password", type=str, help="Password for AOS authentication. - overrides config file")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output")
-    parser.add_argument("-b", "--beacon", type=int, help="Sets the beacon interval in seconds")
-    parser.add_argument("-m", "--messagetype", choices=['taip_pv', 'nmea_rmc', 'all'], default='taip_pv', help="Specify the message type (taip, nmea, or both). Default is 'taip'.")
-    parser.add_argument("-i", "--update", type=int, help="Sets the config update internal in seconds")
-
-    args = parser.parse_args()
+    try:
+        messages = validate_and_process_message_arguments(args)
+    except ValueError as val_err:
+        print(f'Parsing message argument: {val_err}', file=sys.stderr)
+        exit(5)
 
     aos_url = args.aosurl
 
@@ -392,26 +532,40 @@ def main():
                 aos_username=args.username,
                 aos_password=args.password)
 
-    if args.tcpport is not None and args.tcphost is not None:
-        app.add_messenger(NT.TCPClient(args.tcphost, args.tcpport))
+    messenger = {'message_type': args.messagetype.upper(), 'carrier': None}
 
+    if args.tcpport is not None and args.tcphost is not None:
+        messenger['carrier'] = NT.TCPClient(args.tcphost, args.tcpport)
+        
     if args.udpport is not None:
-        app.add_messenger(NT.UDPClient(server_host='255.255.255.255', server_port=args.udpport))
+        messenger['carrier'] = NT.UDPClient(server_host='255.255.255.255', server_port=args.udpport)
+        app.add_messenger(messenger)
+
 
     if args.stdout:
-        app.add_messenger(NT.PipeClient())
+        messenger['carrier'] = NT.PipeClient()
+        app.add_messenger(messenger)
+
+    for msg in messages:
+        messenger = {'message_type': msg['msg_type'], 'carrier': None}
+        if msg['protocol'] == 'UDP':
+            messenger['carrier'] = NT.UDPClient(msg['host'], msg['port'])
+        elif msg['protocol'] == 'TCP':
+            messenger['carrier'] = NT.TCPClient(msg['host'], msg['port'])
+            
+        app.add_messenger(messenger)
 
 
     update_config_time = time
 
     if args.beacon is not None:
         while(1):
-            app.send_gnss(message_type=args.messagetype.upper())
+            app.send_gnss()
             app.update_config()
             time.sleep(args.beacon)
 
     else:
-        app.send_gnss(message_type=args.messagetype.upper())
+        app.send_gnss()
 
 
 
