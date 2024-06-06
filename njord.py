@@ -105,6 +105,7 @@ class NJORD:
         config_local_path (str): Path to the local configuration file.
         config_url (str): URL for configuration file updates.
         AOSClient (AOSClient): Client for interacting with the AOS API.
+        gnss (object): Current GNSS Data, invalidated after every request
     """
 
     def __init__(self, config_file_path: str, config_update_interval: int = None, aos_url: str = None, config_url: str = None, aos_username: str = None, aos_password: str = None):
