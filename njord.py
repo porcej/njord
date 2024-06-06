@@ -29,6 +29,7 @@ from datetime import datetime, timedelta
 from requests.exceptions import HTTPError, RequestException
 from aosapi import AOSClient, AOSKeys
 from gnss import GNSS
+from gnss.gnsshelpers import TAIP
 import NetTools as NT
 
 
@@ -127,7 +128,10 @@ class NJORD:
         self.set_known_access_point_update_from_timestamp(0)
         self.config_local_path = config_file_path
         self.config_url = config_url
-        self.gnss = None
+        self.gnss = GNSS()
+
+        # This is a hack to accomadate the Central Square Mobile Clinets
+        self.gnss.age = TAIP.Age.FRESH
 
         if aos_username is not None and aos_password is not None:
             self.file_creds = False
@@ -320,25 +324,22 @@ class NJORD:
             fields = ["net.wifi.ssid", "location.gnss"]
             aos_resp = self.AOSClient.get_data(fields)
             ap_info = self.check_for_known_access_points(aos_resp)
-            gnss = GNSS()
 
             if ap_info is not None:
-                gnss.set_basic_values(fixtime=None,
+                self.gnss.set_basic_values(fixtime=None,
                                       latitude=ap_info['Latitude'],
                                       longitude=ap_info['Longitude'],
                                       heading=0,
                                       speed=0,
                                       taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID],
-                                      source=9,
-                                      age=2)
+                                      source=9)
             else:
-                gnss.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS_FIXTIME],
+                self.gnss.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS_FIXTIME],
                                       latitude=aos_resp[AOSKeys.GNSS_LATITUDE],
                                       longitude=aos_resp[AOSKeys.GNSS_LONGITUDE],
                                       heading=aos_resp[AOSKeys.GNSS_HEADING],
                                       speed=aos_resp[AOSKeys.GNSS_SPEED],
                                       taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID])
-            self.gnss = gnss
 
         except KeyError as e:
             raise KeyError(f"Missing required key in AOS response data: {e}")
