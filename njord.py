@@ -462,28 +462,28 @@ def parse_arguments():
         action='append', 
         nargs=4, 
         metavar=('MSG_TYPE', 'PROTOCOL', 'PORT', 'HOST'),
-        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PROTOCOL (TCP/UDP), PORT (int), HOST (str)')
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC), PROTOCOL (TCP/UDP), PORT (int), HOST (str)')
 
     parser.add_argument(
         '-z', '--message-alias-taip', 
         action='append', 
         nargs=5, 
         metavar=('MSG_TYPE', 'PROTOCOL', 'PORT', 'HOST', 'ALIAS'),
-        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PROTOCOL (TCP/UDP), PORT (int), HOST (str), TAIP ALIAS (fixed value or +N/-N)')
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC), PROTOCOL (TCP/UDP), PORT (int), HOST (str), TAIP ALIAS (fixed value or +N/-N)')
 
     parser.add_argument(
         '-b', '--broadcast-message', 
         action='append', 
         nargs=2, 
         metavar=('MSG_TYPE', 'PORT'),
-        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PORT (int)')
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC), PORT (int)')
 
     parser.add_argument(
         '-Z', '--broadcast-message-alias-taip', 
         action='append', 
         nargs=3, 
         metavar=('MSG_TYPE', 'PORT', 'ALIAS'),
-        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PORT (int), TAIP ALIAS (fixed value or +N/-N)')
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC), PORT (int), TAIP ALIAS (fixed value or +N/-N)')
 
     return parser.parse_args()
 
