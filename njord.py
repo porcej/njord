@@ -120,6 +120,7 @@ class NJORD:
             aos_username (str): AOS Username for authentication.
             aos_password (str): AOS Password for authentication.
             gnss (object): Current GNSS Data, invalidated after every request
+            taip_id (int): Place holder for taip_id when using taip_id alias
         """
         self.messengers = []
         self.access_points = {}
@@ -130,6 +131,7 @@ class NJORD:
         self.config_local_path = config_file_path
         self.config_url = config_url
         self.gnss = GNSS()
+        taip_id = '0000'
 
         # This is a hack to accomadate the Central Square Mobile Clinets
         self.gnss.age = TAIP.Age.FRESH
@@ -150,6 +152,33 @@ class NJORD:
         # Authenticate and get access token
         self.AOSClient.generate_authentication_token()
 
+    def apply_taip_alias(self, taip_alias: str):
+        """
+        Apply a TAIP alias to the current TAIP ID.
+
+        Args:
+            taip_alias (str): The TAIP alias to apply. This can be a fixed ID or a
+                              mathematical operation (e.g., '+100' or '-50').
+
+        Raises:
+            ValueError: If the alias is not properly formatted.
+        """
+        self.taip_id = self.gnss.taip_id
+
+        if isinstance(taip_alias, int):
+            self.gnss.taip_id = f'{taip_alias:04d}'[-4:]
+        elif isinstance(taip_alias, str):
+            taip_id = int(self.gnss.taip_id)
+            if taip_alias.startswith('+'):
+                taip_id  += int(taip_alias[1:])
+            elif taip_alias.startswith('-'):
+                taip_id  -= int(taip_alias[1:])
+            else:
+                taip_id  = int(taip_alias)
+            self.gnss.taip_id = f'{taip_id:04d}'[-4:]
+            print(f'Taip ALIAS: {taip_alias} - TAIP ID: {self.gnss.taip_id}')
+
+
     def update_config(self):
         """
         Load and update the configuration file if needed.
@@ -166,7 +195,6 @@ class NJORD:
                     raise FileNotFoundError('Unable to read configuration file.')
                 self.next_config_update = datetime.now() + timedelta(seconds=self.config_update_interval)
 
-
     def send_gnss(self):
         """
         Sends the GNSS message to all registered messengers.
@@ -174,8 +202,13 @@ class NJORD:
         """
         self.get_location()
         for messenger in self.messengers:
+            if messenger['taip_alias'] is not None:
+                self.apply_taip_alias(messenger['taip_alias'])
             message  = self.gnss.get_message(message_type=messenger['message_type'])
             messenger['carrier'].print(message)
+            if messenger['taip_alias'] is not None:
+                self.gnss.taip_id = self.taip_id
+
 
     def add_messenger(self, messenger: object):
         """
@@ -429,19 +462,87 @@ def parse_arguments():
         action='append', 
         nargs=4, 
         metavar=('MSG_TYPE', 'PROTOCOL', 'PORT', 'HOST'),
-        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PROTOCOL (TCP/UDP), PORT (int), HOST (str)'
-    )
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PROTOCOL (TCP/UDP), PORT (int), HOST (str)')
+
+    parser.add_argument(
+        '-z', '--message-alias-taip', 
+        action='append', 
+        nargs=5, 
+        metavar=('MSG_TYPE', 'PROTOCOL', 'PORT', 'HOST', 'ALIAS'),
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PROTOCOL (TCP/UDP), PORT (int), HOST (str), TAIP ALIAS (fixed value or +N/-N)')
+
     parser.add_argument(
         '-b', '--broadcast-message', 
         action='append', 
         nargs=2, 
         metavar=('MSG_TYPE', 'PORT'),
-        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PORT (int)'
-    )
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PORT (int)')
+
+    parser.add_argument(
+        '-Z', '--broadcast-message-alias-taip', 
+        action='append', 
+        nargs=3, 
+        metavar=('MSG_TYPE', 'PORT', 'ALIAS'),
+        help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PORT (int), TAIP ALIAS (fixed value or +N/-N)')
 
     return parser.parse_args()
 
-def validate_and_process_message_arguments(args):
+def make_message_dict(
+    msg_type: str,
+    protocol: str,
+    host: str = None,
+    port: int = None,
+    taip_alias: str = None
+) -> dict:
+    """
+    Create a dictionary representing a message configuration.
+
+    Args:
+        msg_type (str): The type of the message. Must be either 'TAIP_PV' or 'NMEA_RMC'.
+        protocol (str): The communication protocol. Must be either 'TCP' or 'UDP'.
+        port (int, optional): The port number. Must be an integer if provided.
+        host (str, optional): The host address. Must be provided.
+        taip_alias (str, optional): An alias for the TAIP ID. ().
+
+    Returns:
+        dict: A dictionary containing the message configuration.
+
+    Raises:
+        ValueError: If msg_type is not 'TAIP_PV' or 'NMEA_RMC'.
+        ValueError: If protocol is not 'TCP' or 'UDP'.
+        ValueError: If port is provided and is not an integer.
+        ValueError: If host is not provided.
+    """
+    msg_type = msg_type.upper()
+    protocol = protocol.upper()
+
+    if msg_type not in ['TAIP_PV', 'NMEA_RMC']:
+        raise ValueError(f"Invalid message type: {msg_type}")
+    
+    if protocol not in ['TCP', 'UDP']:
+        raise ValueError(f"Invalid protocol: {protocol}")
+    
+    if port is not None:
+        try:
+            port = int(port)
+        except (ValueError, TypeError):
+            raise ValueError(f"Port must be an integer: {port}")
+    else:
+        raise ValueError("Port must be provided")
+
+    if host is None:
+        raise ValueError("Host must be provided")
+
+    return {
+        'msg_type': msg_type,
+        'protocol': protocol,
+        'port': port,
+        'host': host,
+        'alias': taip_alias
+    }
+
+
+def validate_and_process_message_arguments(args: object):
     """
     Validates and processes the command line arguments.
 
@@ -458,50 +559,28 @@ def validate_and_process_message_arguments(args):
     if args.message is not None:
         for msg in args.message:
             msg_type, protocol, port, host = msg
-            msg_type = msg_type.upper()
-            protocol = protocol.upper()
-            
-            if msg_type not in ['TAIP_PV', 'NMEA_RMC']:
-                raise ValueError(f"Invalid message type: {msg_type}")
-            
-            if protocol not in ['TCP', 'UDP']:
-                raise ValueError(f"Invalid protocol: {protocol}")
-
-            try:
-                port = int(port)
-            except ValueError:
-                raise ValueError(f"Port must be an integer: {port}")
-
-            if host is None:
-                raise ValueError("Host must be provided")
-            
-             
-            messages.append({
-                'msg_type': msg_type,
-                'protocol': protocol,
-                'port': port,
-                'host': host
-            })
+            msg_dict = make_message_dict(msg_type=msg_type, protocol=protocol, port=port, host=host)
+            messages.append(msg_dict)
 
     if args.broadcast_message is not None:
         for msg in args.broadcast_message:
             msg_type, port = msg
-            msg_type = msg_type.upper()
-            
-            if msg_type not in ['TAIP_PV', 'NMEA_RMC']:
-                raise ValueError(f"Invalid message type: {msg_type}")
-            
-            try:
-                port = int(port)
-            except ValueError:
-                raise ValueError(f"Port must be an integer: {port}")
+            msg_dict = make_message_dict(msg_type=msg_type, protocol='UDP', port=port, host='255.255.255.255')
+            messages.append(msg_dict)
+
+    if args.message_alias_taip is not None:
+        for msg in message_alias_taip:
+            msg_type, protocol, port, host, alias = msg
+            msg_dict = make_message_dict(msg_type=msg_type, protocol=protocol, port=port, host=host, taip_alias=alias)
+            messages.append(msg_dict)
+
+    if args.broadcast_message_alias_taip is not None:
+        for msg in args.broadcast_message_alias_taip:
+            msg_type, port, alias = msg
+            msg_dict = make_message_dict(msg_type=msg_type, protocol='UDP', port=port, host='255.255.255.255',  taip_alias=alias)
+            messages.append(msg_dict)
         
-            messages.append({
-                'msg_type': msg_type,
-                'protocol': 'UDP',
-                'port': port,
-                'host': '255.255.255.255'
-            })
+
     return messages
 
 def main():
@@ -549,7 +628,7 @@ def main():
         app.add_messenger(messenger)
 
     for msg in messages:
-        messenger = {'message_type': msg['msg_type'], 'carrier': None}
+        messenger = {'message_type': msg['msg_type'], 'carrier': None, 'taip_alias': msg['alias']}
         if msg['protocol'] == 'UDP':
             messenger['carrier'] = NT.UDPClient(msg['host'], msg['port'])
         elif msg['protocol'] == 'TCP':
