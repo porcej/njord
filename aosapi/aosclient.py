@@ -34,7 +34,7 @@ class AOSClient:
         password (str): Password used to generate authentication token.
         access_token (str): The access token used for authentication.
         headers (dict): Headers to be included in API requests.
-        response (dict): Cached response data from file.
+        file_proxy_api_data (dict): Cached response data from file.
         verify_ssl (bool): Flag to verify SSL certificates.
     """
 
@@ -55,14 +55,14 @@ class AOSClient:
             ValueError: If the base URL or file path is invalid.
         """
         self.verify_ssl = False
-        self.response = None
+        self.file_proxy_api_data = None
 
         result = urlparse(base_url)
         if all([result.scheme, result.netloc]):
             self.base_url = base_url
         elif os.path.isfile(base_url):
             self.base_url = None
-            self.response = self.load_json_file(base_url).get('data', [None])[0]
+            self.load_json_file(base_url)
         else:
             raise ValueError("Invalid base URL or file path provided")
 
@@ -97,7 +97,7 @@ class AOSClient:
         Returns:
             str: The access token obtained from the API.
         """
-        if self.response is not None:
+        if self.file_proxy_api_data is not None:
             self.access_token = "file access"
             return "file access"
 
@@ -139,8 +139,8 @@ class AOSClient:
         Returns:
             dict: The JSON response from the API containing the requested data.
         """
-        if self.response is not None:
-            return self.response
+        if self.file_proxy_api_data is not None:
+            return self.file_proxy_api_data
 
         url = f"{self.base_url}{self.GET_API_ENDPOINT}"
         json_data = {
@@ -167,16 +167,12 @@ class AOSClient:
         except ValueError as val_err:
             raise ValueError(f"Value error occurred: {val_err}")
 
-    @staticmethod
-    def load_json_file(file_path):
+    def load_json_file(self, file_path):
         """
-        Load a JSON file from a local file path.
+        Sets file_proxy_api_data by loading a JSON file from a local file path.
 
         Args:
             file_path (str): The path to the JSON configuration file.
-
-        Returns:
-            dict: The parsed JSON data as a dictionary.
 
         Raises:
             FileNotFoundError: If the file does not exist.
@@ -184,7 +180,7 @@ class AOSClient:
         """
         try:
             with open(file_path, "r") as file:
-                return json.load(file)
+                self.file_proxy_api_data = json.load(file).get('data', [None])[0]
         except FileNotFoundError:
             raise FileNotFoundError(f'Failed to read AOS API JSON {file_path}')
         except json.JSONDecodeError as e:
