@@ -176,8 +176,6 @@ class NJORD:
             else:
                 taip_id  = int(taip_alias)
             self.gnss.taip_id = f'{taip_id:04d}'[-4:]
-            print(f'Taip ALIAS: {taip_alias} - TAIP ID: {self.gnss.taip_id}')
-
 
     def update_config(self):
         """
