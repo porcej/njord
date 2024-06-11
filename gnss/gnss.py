@@ -142,7 +142,7 @@ class GNSS:
         longi = f'{long_sign}{abs(self.longitude) * 100000:08.0f}'
         speed = f'{GNSSMeasure.ms_to_mph(self.speed):03.0f}'
         heading = f'{self.heading:03.0f}'
-        message = f">RPV{gps_tod}{lat}{longi}{speed}{heading}{self.source}{self.age};ID={self.taip_id};*"
+        message = f">RPV{gps_tod:05d}{lat}{longi}{speed}{heading}{self.source}{self.age};ID={self.taip_id};*"
         return f"{message}{GNSSTools.hex_xor_checksum(message)}<"
 
     def generate_nmea_messages(self) -> dict:
