@@ -23,7 +23,9 @@ You can run the NJORD application using the command line. Below are the availabl
 usage: njord.py [-h] [-c CONFIG] [-C CONFIG_URL] [-a AOSURL] [-g] [-U UDPPORT]
                 [-s] [-t TCPPORT] [-T TCPHOST] [-u USERNAME] [-p PASSWORD]
                 [-v] [-B BEACON] [-M {taip_pv,nmea_rmc,all}] [-i UPDATE]
-                [-m MSG_TYPE PROTOCOL PORT HOST] [-b MSG_TYPE PORT]
+                [-m MSG_TYPE PROTOCOL PORT HOST]
+                [-z MSG_TYPE PROTOCOL PORT HOST ALIAS] [-b MSG_TYPE PORT]
+                [-Z MSG_TYPE PORT ALIAS]
 
 NJORD - A buoy to augment a GNSS data stream based on known Wifi AP locations.
 
@@ -61,11 +63,19 @@ options:
   -i UPDATE, --update UPDATE
                         Sets the config update interval in seconds.
   -m MSG_TYPE PROTOCOL PORT HOST, --message MSG_TYPE PROTOCOL PORT HOST
-                        Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV),
+                        Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC),
                         PROTOCOL (TCP/UDP), PORT (int), HOST (str)
+  -z MSG_TYPE PROTOCOL PORT HOST ALIAS, --message-alias-taip MSG_TYPE PROTOCOL PORT HOST ALIAS
+                        Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC),
+                        PROTOCOL (TCP/UDP), PORT (int), HOST (str), TAIP ALIAS
+                        (fixed value or +N/-N)
   -b MSG_TYPE PORT, --broadcast-message MSG_TYPE PORT
-                        Message parameters: MSG_TYPE (TAIP_PV/NMEA_PV), PORT
+                        Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC), PORT
                         (int)
+  -Z MSG_TYPE PORT ALIAS, --broadcast-message-alias-taip MSG_TYPE PORT ALIAS
+                        Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC), PORT
+                        (int), TAIP ALIAS (fixed value or +N/-N)
+
 ```
 
 ## Example
