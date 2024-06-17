@@ -100,27 +100,50 @@ class NJORD:
     Attributes:
         messengers (list): List of objects to send GNSS data, calls send_message(message) on the object.
         access_points (dict): Dicts of known access points and their locations, keyed on SSID.
-        next_config_update (datetime): Timestamp for the next configuration update.
-        config_update_interval (int): Interval between config updates in seconds.
+        next_config_update (datetime): Timestamp for the next configuration
+            update.
+        config_update_interval (int): Interval between config updates in
+            seconds.
         config_local_path (str): Path to the local configuration file.
         config_url (str): URL for configuration file updates.
+        hdop_excellent_threshold (float): GNSS data with HDOP <  this value
+            will not be passed without checking for Wifi APs. 
+        hdop_poor_threshold (float): Maximum acceptable HDOP value, GNSS data
+            with a higher value is ignored.
+        num_wifi_scans (int): Number of Wifi scans to perform if a Wifi AP is
+            not found
+        wifi_scan_interval (int): Number of seconds to pause between Wifi
+            scans
+        debug (bool): Prints debug information to standard output
         AOSClient (AOSClient): Client for interacting with the AOS API.
         gnss (object): Current GNSS Data, invalidated after every request
     """
 
-    def __init__(self, config_file_path: str, config_update_interval: int = None, aos_url: str = None, config_url: str = None, aos_username: str = None, aos_password: str = None):
+    def __init__(self, config_file_path: str, config_update_interval: int = None,
+                 aos_url: str = None, config_url: str = None, aos_username: str = None,
+                 aos_password: str = None, hdop_excellent_threshold: float = None,
+                 hdop_poor_threshold: float = None, num_wifi_scans: int = 1,
+                 wifi_scan_interval: int = 1, debug: bool = False):
         """
         Initialize the NJORD instance with configuration and API details.
 
         Args:
             config_file_path (str): Path to the local configuration file.
-            config_update_interval (int): Number of seconds between config file updates.
+            config_update_interval (int): Number of seconds between config file
+                updates.
             aos_url (str): AOS API base URL.
             config_url (str): URL for configuration file updates.
             aos_username (str): AOS Username for authentication.
             aos_password (str): AOS Password for authentication.
             gnss (object): Current GNSS Data, invalidated after every request
             taip_id (int): Place holder for taip_id when using taip_id alias
+            hdop_excellent_threshold (float): GNSS data with HDOP <  this value
+                will not be passed without checking for Wifi APs. 
+            hdop_poor_threshold (float): Maximum acceptable HDOP value, GNSS 
+                data with a higher value is ignored.
+            num_wifi_scans (int): Number of Wifi scans to perform if a Wifi AP
+                is not found
+            wifi_scan_interval (int): Number of seconds to pause between Wifi scans
         """
         self.messengers = []
         self.access_points = {}
@@ -131,8 +154,13 @@ class NJORD:
         self.config_local_path = config_file_path
         self.config_url = config_url
         self.gnss = GNSS()
-        taip_id = '0000'
-
+        self.hdop_excellent_threshold = hdop_excellent_threshold
+        self.hdop_poor_threshold = hdop_poor_threshold
+        self.num_wifi_scans = num_wifi_scans
+        self.wifi_scan_interval = wifi_scan_interval
+        self.taip_id = '0000'
+        self.debug = debug
+        
         # This is a hack to accomadate the Central Square Mobile Clinets
         self.gnss.age = TAIP.Age.FRESH
 
@@ -151,6 +179,20 @@ class NJORD:
 
         # Authenticate and get access token
         self.AOSClient.generate_authentication_token()
+
+        self.debug_msg(f'NJORD Initialized:')
+        for attribute, value in self.__dict__.items():
+            self.debug_msg(f'\t{attribute}: {value}')
+
+    def debug_msg(self, msg: str):
+        """
+        Prints msg to string if self.debug is true else does nothing
+
+        Args:
+            msg (str): string to print to standard output
+        """
+        if self.debug:
+            print(msg)
 
     def apply_taip_alias(self, taip_alias: str):
         """
@@ -198,15 +240,77 @@ class NJORD:
         Sends the GNSS message to all registered messengers.
 
         """
-        self.get_location()
-        for messenger in self.messengers:
-            if messenger['taip_alias'] is not None:
-                self.apply_taip_alias(messenger['taip_alias'])
-            message  = self.gnss.get_message(message_type=messenger['message_type'])
-            messenger['carrier'].print(message)
-            if messenger['taip_alias'] is not None:
-                self.gnss.taip_id = self.taip_id
+        if self.get_location():
+            for messenger in self.messengers:
+                if messenger['taip_alias'] is not None:
+                    self.apply_taip_alias(messenger['taip_alias'])
+                message  = self.gnss.get_message(message_type=messenger['message_type'])
+                messenger['carrier'].print(message)
+                if messenger['taip_alias'] is not None:
+                    self.gnss.taip_id = self.taip_id
 
+    def get_location(self) -> bool:
+        """
+        Sets position (gnss) from Access Point if available or uses AOS API location if no Wifi APs are available.
+
+        Returns:
+            bool: True if position is valid, false otherwise
+
+        Raises:
+            KeyError: If required keys are missing in the AOS API response.
+            Exception: If an unexpected error occurs during processing.
+        """
+        try:
+            fields = [AOSKeys.QUERY.GNSS, AOSKeys.QUERY.WIFI]
+            aos_resp = self.AOSClient.get_data(fields)
+
+            self.gnss.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS.FIXTIME],
+                latitude=aos_resp[AOSKeys.GNSS.LATITUDE],
+                longitude=aos_resp[AOSKeys.GNSS.LONGITUDE],
+                heading=aos_resp[AOSKeys.GNSS.HEADING],
+                speed=aos_resp[AOSKeys.GNSS.SPEED],
+                taip_id=aos_resp[AOSKeys.GNSS.TAIP_ID])
+
+            # If HDOP value < HDOP Excellent Threshold, then send without wifi scan
+            if self.hdop_excellent_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_excellent_threshold:
+                self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Excellent Threshold ({self.hdop_excellent_threshold})')
+                return True
+
+            from pprint import pprint
+
+            ap_info = None
+            wifi_scan_count = 1
+            while wifi_scan_count <= self.num_wifi_scans:
+                if wifi_scan_count > 1:
+                    time.sleep(self.wifi_scan_interval)
+
+                    # Ping Airlink OS API for Wifi Data
+                    aos_resp = self.AOSClient.get_data(fields)
+                self.debug_msg(f'Wifi scan attempt #{wifi_scan_count} of {self.num_wifi_scans}')
+                ap_info = self.check_for_known_access_points(aos_resp)
+                # We found an AP, we will send its location 
+                if ap_info is not None:
+                    self.debug_msg(f"Found Wifi AP: SSID: {ap_info['Ssid']}, BSSID: {ap_info['Bssid']} - {ap_info['LocationDescription']}")
+                    self.gnss.set_basic_values(fixtime=None,
+                                          latitude=ap_info['Latitude'],
+                                          longitude=ap_info['Longitude'],
+                                          heading=0,
+                                          speed=0,
+                                          source=9)
+                    return True
+                wifi_scan_count += 1
+
+            # If HDOP value < HDOP poor threshold, then send
+            if (self.hdop_poor_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_poor_threshold) or self.hdop_poor_threshold is None:
+                self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Poor Threshold ({self.hdop_poor_threshold:.1f})')
+                return True
+
+            return False
+
+        except KeyError as e:
+            raise KeyError(f"Missing required key in AOS response data: {e}")
+        except Exception as e:
+            raise Exception(f"An unexpected error occurred: {e}")
 
     def add_messenger(self, messenger: object):
         """
@@ -326,8 +430,8 @@ class NJORD:
 
         try:
             for ssid, wifi_access_points in self.access_points.items():
-                for band in AOSKeys.WIFI_BANDS:
-                    ap_key = AOSKeys.generate_wifi_key(ssid, band=band)
+                for band in AOSKeys.WIFI.BANDS:
+                    ap_key = AOSKeys.WIFI.ap_list(ssid, band=band)
 
                     if ap_key in aos_resp:
                         access_points = {ap['Bssid']: ap for ap in wifi_access_points}
@@ -344,40 +448,6 @@ class NJORD:
         except Exception as e:
             raise Exception(f"An unexpected error occurred: {e}")
 
-    def get_location(self):
-        """
-        Sets position (gnss) from Access Point if available or uses AOS API location if no Wifi APs are available.
-
-        Raises:
-            KeyError: If required keys are missing in the AOS API response.
-            Exception: If an unexpected error occurs during processing.
-        """
-        try:
-            fields = ["net.wifi.ssid", "location.gnss"]
-            aos_resp = self.AOSClient.get_data(fields)
-            ap_info = self.check_for_known_access_points(aos_resp)
-
-            if ap_info is not None:
-                self.gnss.set_basic_values(fixtime=None,
-                                      latitude=ap_info['Latitude'],
-                                      longitude=ap_info['Longitude'],
-                                      heading=0,
-                                      speed=0,
-                                      taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID],
-                                      source=9)
-            else:
-                self.gnss.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS_FIXTIME],
-                                      latitude=aos_resp[AOSKeys.GNSS_LATITUDE],
-                                      longitude=aos_resp[AOSKeys.GNSS_LONGITUDE],
-                                      heading=aos_resp[AOSKeys.GNSS_HEADING],
-                                      speed=aos_resp[AOSKeys.GNSS_SPEED],
-                                      taip_id=aos_resp[AOSKeys.GNSS_TAIP_ID])
-
-        except KeyError as e:
-            raise KeyError(f"Missing required key in AOS response data: {e}")
-        except Exception as e:
-            raise Exception(f"An unexpected error occurred: {e}")
-
 def parse_arguments():
     """
     Parses command line arguments.
@@ -386,6 +456,12 @@ def parse_arguments():
         argparse.Namespace: Parsed arguments.
     """
     parser = argparse.ArgumentParser(description=f'{__app_name__} - {__description__}')
+
+    parser.add_argument(
+        '-a', '--aosurl',
+        default='https://192.168.1.1',
+        help='Base URL for AOS API, defaults to "https://192.168.1.1", if a file path is provided, tries to read the file as a proxy API.'
+    )
     parser.add_argument(
         '-c', '--config',
         default='data/config.json',
@@ -394,11 +470,6 @@ def parse_arguments():
     parser.add_argument(
         '-C', '--config_url',
         help='URL to acquire net config files.'
-    )
-    parser.add_argument(
-        '-a', '--aosurl',
-        default='https://192.168.1.1',
-        help='Base URL for AOS API, defaults to "https://192.168.1.1", if a file path is provided, tries to read the file as a proxy API.'
     )
     parser.add_argument(
         "-g", "--gateway",
@@ -437,7 +508,7 @@ def parse_arguments():
     parser.add_argument(
         '-v', '--verbose',
         action='store_true',
-        help='Print verbose output'
+        help='Prints messages to standard output.'
     )
     parser.add_argument(
         '-B', '--beacon',
@@ -482,6 +553,28 @@ def parse_arguments():
         nargs=3, 
         metavar=('MSG_TYPE', 'PORT', 'ALIAS'),
         help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC), PORT (int), TAIP ALIAS (fixed value or +N/-N)')
+
+    parser.add_argument(
+        '-n', '--num-wifi-scan',
+        type=int,
+        default=1,
+        help='Number of times to scan for Wifi APs per beacon interval (int) Defaults is 1.')
+
+    parser.add_argument(
+        '-W', '--wifi-scan-delay',
+        type=int,
+        default=1,
+        help='Delay between subsaquint Wifi scans in seconds.  Default is 1.')
+
+    parser.add_argument(
+        '-d', '--hdop-excellent-threshop',
+        type=float,
+        help='When GNSS data is reported to be less than this value (float), Wifi scan is not performed and GNSS data is reported.')
+
+    parser.add_argument(
+        '-D', '--hdop-poor-threshold',
+        type=float,
+        help="When GNSS data has a HDOP greather than this value, the GNSS data is ignored as invalid.")    
 
     return parser.parse_args()
 
@@ -557,25 +650,39 @@ def validate_and_process_message_arguments(args: object):
     if args.message is not None:
         for msg in args.message:
             msg_type, protocol, port, host = msg
-            msg_dict = make_message_dict(msg_type=msg_type, protocol=protocol, port=port, host=host)
+            msg_dict = make_message_dict(msg_type=msg_type,
+                                         protocol=protocol,
+                                         port=port,
+                                         host=host)
             messages.append(msg_dict)
 
     if args.broadcast_message is not None:
         for msg in args.broadcast_message:
             msg_type, port = msg
-            msg_dict = make_message_dict(msg_type=msg_type, protocol='UDP', port=port, host='255.255.255.255')
+            msg_dict = make_message_dict(msg_type=msg_type,
+                                         protocol='UDP',
+                                         port=port,
+                                         host='255.255.255.255')
             messages.append(msg_dict)
 
     if args.message_alias_taip is not None:
         for msg in message_alias_taip:
             msg_type, protocol, port, host, alias = msg
-            msg_dict = make_message_dict(msg_type=msg_type, protocol=protocol, port=port, host=host, taip_alias=alias)
+            msg_dict = make_message_dict(msg_type=msg_type,
+                                         protocol=protocol,
+                                         port=port,
+                                         host=host,
+                                         taip_alias=alias)
             messages.append(msg_dict)
 
     if args.broadcast_message_alias_taip is not None:
         for msg in args.broadcast_message_alias_taip:
             msg_type, port, alias = msg
-            msg_dict = make_message_dict(msg_type=msg_type, protocol='UDP', port=port, host='255.255.255.255',  taip_alias=alias)
+            msg_dict = make_message_dict(msg_type=msg_type,
+                                         protocol='UDP',
+                                         port=port,
+                                         host='255.255.255.255',
+                                         taip_alias=alias)
             messages.append(msg_dict)
         
 
@@ -609,7 +716,12 @@ def main():
                 aos_url=aos_url,
                 config_url=args.config_url,
                 aos_username=args.username,
-                aos_password=args.password)
+                aos_password=args.password,
+                hdop_excellent_threshold=args.hdop_excellent_threshop,
+                hdop_poor_threshold=args.hdop_poor_threshold,
+                num_wifi_scans=args.num_wifi_scan,
+                wifi_scan_interval=args.wifi_scan_delay,
+                debug=args.verbose)
 
     messenger = {'message_type': args.messagetype.upper(), 'carrier': None}
 
