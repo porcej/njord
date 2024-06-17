@@ -100,14 +100,20 @@ class NJORD:
     Attributes:
         messengers (list): List of objects to send GNSS data, calls send_message(message) on the object.
         access_points (dict): Dicts of known access points and their locations, keyed on SSID.
-        next_config_update (datetime): Timestamp for the next configuration update.
-        config_update_interval (int): Interval between config updates in seconds.
+        next_config_update (datetime): Timestamp for the next configuration
+            update.
+        config_update_interval (int): Interval between config updates in
+            seconds.
         config_local_path (str): Path to the local configuration file.
         config_url (str): URL for configuration file updates.
-        hdop_excellent_threshold (float): GNSS data with HDOP <  this value will not be passed without checking for Wifi APs. 
-        hdop_poor_threshold (float): Maximum acceptable HDOP value, GNSS data with a higher value is ignored.
-        num_wifi_scans (int): Number of Wifi scans to perform if a Wifi AP is not found
-        wifi_scan_interval (int): Number of seconds to pause between Wifi scans
+        hdop_excellent_threshold (float): GNSS data with HDOP <  this value
+            will not be passed without checking for Wifi APs. 
+        hdop_poor_threshold (float): Maximum acceptable HDOP value, GNSS data
+            with a higher value is ignored.
+        num_wifi_scans (int): Number of Wifi scans to perform if a Wifi AP is
+            not found
+        wifi_scan_interval (int): Number of seconds to pause between Wifi
+            scans
         debug (bool): Prints debug information to standard output
         AOSClient (AOSClient): Client for interacting with the AOS API.
         gnss (object): Current GNSS Data, invalidated after every request
@@ -123,16 +129,20 @@ class NJORD:
 
         Args:
             config_file_path (str): Path to the local configuration file.
-            config_update_interval (int): Number of seconds between config file updates.
+            config_update_interval (int): Number of seconds between config file
+                updates.
             aos_url (str): AOS API base URL.
             config_url (str): URL for configuration file updates.
             aos_username (str): AOS Username for authentication.
             aos_password (str): AOS Password for authentication.
             gnss (object): Current GNSS Data, invalidated after every request
             taip_id (int): Place holder for taip_id when using taip_id alias
-            hdop_excellent_threshold (float): GNSS data with HDOP <  this value will not be passed without checking for Wifi APs. 
-            hdop_poor_threshold (float): Maximum acceptable HDOP value, GNSS data with a higher value is ignored.
-            num_wifi_scans (int): Number of Wifi scans to perform if a Wifi AP is not found
+            hdop_excellent_threshold (float): GNSS data with HDOP <  this value
+                will not be passed without checking for Wifi APs. 
+            hdop_poor_threshold (float): Maximum acceptable HDOP value, GNSS 
+                data with a higher value is ignored.
+            num_wifi_scans (int): Number of Wifi scans to perform if a Wifi AP
+                is not found
             wifi_scan_interval (int): Number of seconds to pause between Wifi scans
         """
         self.messengers = []
@@ -446,6 +456,12 @@ def parse_arguments():
         argparse.Namespace: Parsed arguments.
     """
     parser = argparse.ArgumentParser(description=f'{__app_name__} - {__description__}')
+
+    parser.add_argument(
+        '-a', '--aosurl',
+        default='https://192.168.1.1',
+        help='Base URL for AOS API, defaults to "https://192.168.1.1", if a file path is provided, tries to read the file as a proxy API.'
+    )
     parser.add_argument(
         '-c', '--config',
         default='data/config.json',
@@ -454,11 +470,6 @@ def parse_arguments():
     parser.add_argument(
         '-C', '--config_url',
         help='URL to acquire net config files.'
-    )
-    parser.add_argument(
-        '-a', '--aosurl',
-        default='https://192.168.1.1',
-        help='Base URL for AOS API, defaults to "https://192.168.1.1", if a file path is provided, tries to read the file as a proxy API.'
     )
     parser.add_argument(
         "-g", "--gateway",
@@ -639,25 +650,39 @@ def validate_and_process_message_arguments(args: object):
     if args.message is not None:
         for msg in args.message:
             msg_type, protocol, port, host = msg
-            msg_dict = make_message_dict(msg_type=msg_type, protocol=protocol, port=port, host=host)
+            msg_dict = make_message_dict(msg_type=msg_type,
+                                         protocol=protocol,
+                                         port=port,
+                                         host=host)
             messages.append(msg_dict)
 
     if args.broadcast_message is not None:
         for msg in args.broadcast_message:
             msg_type, port = msg
-            msg_dict = make_message_dict(msg_type=msg_type, protocol='UDP', port=port, host='255.255.255.255')
+            msg_dict = make_message_dict(msg_type=msg_type,
+                                         protocol='UDP',
+                                         port=port,
+                                         host='255.255.255.255')
             messages.append(msg_dict)
 
     if args.message_alias_taip is not None:
         for msg in message_alias_taip:
             msg_type, protocol, port, host, alias = msg
-            msg_dict = make_message_dict(msg_type=msg_type, protocol=protocol, port=port, host=host, taip_alias=alias)
+            msg_dict = make_message_dict(msg_type=msg_type,
+                                         protocol=protocol,
+                                         port=port,
+                                         host=host,
+                                         taip_alias=alias)
             messages.append(msg_dict)
 
     if args.broadcast_message_alias_taip is not None:
         for msg in args.broadcast_message_alias_taip:
             msg_type, port, alias = msg
-            msg_dict = make_message_dict(msg_type=msg_type, protocol='UDP', port=port, host='255.255.255.255',  taip_alias=alias)
+            msg_dict = make_message_dict(msg_type=msg_type,
+                                         protocol='UDP',
+                                         port=port,
+                                         host='255.255.255.255',
+                                         taip_alias=alias)
             messages.append(msg_dict)
         
 
