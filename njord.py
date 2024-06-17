@@ -170,6 +170,10 @@ class NJORD:
         # Authenticate and get access token
         self.AOSClient.generate_authentication_token()
 
+        self.debug_msg(f'NJORD Initialized:')
+        for attribute, value in self.__dict__.items():
+            self.debug_msg(f'\t{attribute}: {value}')
+
     def debug_msg(self, msg: str):
         """
         Prints msg to string if self.debug is true else does nothing
@@ -269,6 +273,9 @@ class NJORD:
             while wifi_scan_count <= self.num_wifi_scans:
                 if wifi_scan_count > 1:
                     time.sleep(self.wifi_scan_interval)
+
+                    # Ping Airlink OS API for Wifi Data
+                    aos_resp = self.AOSClient.get_data(fields)
                 self.debug_msg(f'Wifi scan attempt #{wifi_scan_count} of {self.num_wifi_scans}')
                 ap_info = self.check_for_known_access_points(aos_resp)
                 # We found an AP, we will send its location 
@@ -284,8 +291,8 @@ class NJORD:
                 wifi_scan_count += 1
 
             # If HDOP value < HDOP poor threshold, then send
-            if (self.hdop_poor_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_excellent_threshold) or self.hdop_poor_threshold is None:
-                self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Poor Threshold ({self.hdop_excellent_threshold})')
+            if (self.hdop_poor_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_poor_threshold) or self.hdop_poor_threshold is None:
+                self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Poor Threshold ({self.hdop_poor_threshold:.1f})')
                 return True
 
             return False
@@ -490,7 +497,7 @@ def parse_arguments():
     parser.add_argument(
         '-v', '--verbose',
         action='store_true',
-        help='Print verbose output'
+        help='Prints messages to standard output.'
     )
     parser.add_argument(
         '-B', '--beacon',
@@ -535,6 +542,28 @@ def parse_arguments():
         nargs=3, 
         metavar=('MSG_TYPE', 'PORT', 'ALIAS'),
         help='Message parameters: MSG_TYPE (TAIP_PV/NMEA_RMC), PORT (int), TAIP ALIAS (fixed value or +N/-N)')
+
+    parser.add_argument(
+        '-n', '--num-wifi-scan',
+        type=int,
+        default=1,
+        help='Number of times to scan for Wifi APs per beacon interval (int) Defaults is 1.')
+
+    parser.add_argument(
+        '-W', '--wifi-scan-delay',
+        type=int,
+        default=1,
+        help='Delay between subsaquint Wifi scans in seconds.  Default is 1.')
+
+    parser.add_argument(
+        '-d', '--hdop-excellent-threshop',
+        type=float,
+        help='When GNSS data is reported to be less than this value (float), Wifi scan is not performed and GNSS data is reported.')
+
+    parser.add_argument(
+        '-D', '--hdop-poor-threshold',
+        type=float,
+        help="When GNSS data has a HDOP greather than this value, the GNSS data is ignored as invalid.")    
 
     return parser.parse_args()
 
@@ -662,7 +691,12 @@ def main():
                 aos_url=aos_url,
                 config_url=args.config_url,
                 aos_username=args.username,
-                aos_password=args.password)
+                aos_password=args.password,
+                hdop_excellent_threshold=args.hdop_excellent_threshop,
+                hdop_poor_threshold=args.hdop_poor_threshold,
+                num_wifi_scans=args.num_wifi_scan,
+                wifi_scan_interval=args.wifi_scan_delay,
+                debug=args.verbose)
 
     messenger = {'message_type': args.messagetype.upper(), 'carrier': None}
 
