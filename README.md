@@ -26,7 +26,7 @@ usage: njord.py [-h] [-a AOSURL] [-c CONFIG] [-C CONFIG_URL] [-g] [-U UDPPORT]
                 [-m MSG_TYPE PROTOCOL PORT HOST]
                 [-z MSG_TYPE PROTOCOL PORT HOST ALIAS] [-b MSG_TYPE PORT]
                 [-Z MSG_TYPE PORT ALIAS] [-n NUM_WIFI_SCAN]
-                [-W WIFI_SCAN_DELAY] [-d HDOP_EXCELLENT_THRESHOP]
+                [-W WIFI_SCAN_DELAY] [-d HDOP_EXCELLENT_THRESHOLD]
                 [-D HDOP_POOR_THRESHOLD]
 
 NJORD - A buoy to augment a GNSS data stream based on known Wifi AP locations.
@@ -83,7 +83,7 @@ options:
   -W WIFI_SCAN_DELAY, --wifi-scan-delay WIFI_SCAN_DELAY
                         Delay between subsaquint Wifi scans in seconds.
                         Default is 1.
-  -d HDOP_EXCELLENT_THRESHOP, --hdop-excellent-threshop HDOP_EXCELLENT_THRESHOP
+  -d HDOP_EXCELLENT_THRESHOLD, --hdop-excellent-threshold HDOP_EXCELLENT_THRESHOLD
                         When GNSS data is reported to be less than this value
                         (float), Wifi scan is not performed and GNSS data is
                         reported.
