@@ -567,7 +567,7 @@ def parse_arguments():
         help='Delay between subsaquint Wifi scans in seconds.  Default is 1.')
 
     parser.add_argument(
-        '-d', '--hdop-excellent-threshop',
+        '-d', '--hdop-excellent-threshold',
         type=float,
         help='When GNSS data is reported to be less than this value (float), Wifi scan is not performed and GNSS data is reported.')
 
@@ -717,7 +717,7 @@ def main():
                 config_url=args.config_url,
                 aos_username=args.username,
                 aos_password=args.password,
-                hdop_excellent_threshold=args.hdop_excellent_threshop,
+                hdop_excellent_threshold=args.hdop_excellent_threshold,
                 hdop_poor_threshold=args.hdop_poor_threshold,
                 num_wifi_scans=args.num_wifi_scan,
                 wifi_scan_interval=args.wifi_scan_delay,
