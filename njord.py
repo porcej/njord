@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 from requests.exceptions import HTTPError, RequestException
 from aosapi import AOSClient, AOSKeys
 from gnss import GNSS
-from gnss.gnsshelpers import TAIP GNSSMeasure
+from gnss.gnsshelpers import TAIP
 import NetTools as NT
 
 
@@ -242,11 +242,12 @@ class NJORD:
         """
         if self.get_location():
             for messenger in self.messengers:
-                if messenger['taip_alias'] is not None:
-                    self.apply_taip_alias(messenger['taip_alias'])
+                taip_alias = messenger.get('taip_alias', None)
+                if taip_alias is not None:
+                    self.apply_taip_alias(taip_alias)
                 message  = self.gnss.get_message(message_type=messenger['message_type'])
                 messenger['carrier'].print(message)
-                if messenger['taip_alias'] is not None:
+                if taip_alias is not None:
                     self.gnss.taip_id = self.taip_id
 
     def get_location(self) -> bool:
@@ -264,19 +265,45 @@ class NJORD:
             fields = [AOSKeys.QUERY.GNSS, AOSKeys.QUERY.WIFI]
             aos_resp = self.AOSClient.get_data(fields)
 
+            # Calculate TAIP Data Source
+            aos_data_qi = aos_resp[AOSKeys.GNSS.QI]
+            aos_num_sats = aos_resp[AOSKeys.GNSS.SATCOUNT]
+            source = 9
+
+            # GPS Fix
+            if (aos_data_qi == 1):
+                source = 0
+
+            # Differential GPS Gix
+            elif (1 < aos_data_qi < 6):
+                source = 2
+
+            # Handle 2D and 3D fixes based on number of sats
+            if (aos_num_sats >= 3):
+                source = source + 1
+
+            # Handle No Fix
+            if (aos_data_qi == 0):
+                source = 9
+
+            # Handle Dead Reckoning
+            if (aos_data_qi == 6):
+                source = 6
+
+
+
             self.gnss.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS.FIXTIME],
                 latitude=aos_resp[AOSKeys.GNSS.LATITUDE],
                 longitude=aos_resp[AOSKeys.GNSS.LONGITUDE],
                 heading=aos_resp[AOSKeys.GNSS.HEADING],
-                speed=GNSSMeasure.kmph_to_mph(aos_resp[AOSKeys.GNSS.SPEED]),
-                taip_id=aos_resp[AOSKeys.GNSS.TAIP_ID])
+                speed_kmph=aos_resp[AOSKeys.GNSS.SPEED],
+                taip_id=aos_resp[AOSKeys.GNSS.TAIP_ID],
+                source=source)
 
             # If HDOP value < HDOP Excellent Threshold, then send without wifi scan
             if self.hdop_excellent_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_excellent_threshold:
                 self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Excellent Threshold ({self.hdop_excellent_threshold})')
                 return True
-
-            from pprint import pprint
 
             ap_info = None
             wifi_scan_count = 1
@@ -295,14 +322,18 @@ class NJORD:
                                           latitude=ap_info['Latitude'],
                                           longitude=ap_info['Longitude'],
                                           heading=0,
-                                          speed=0,
+                                          speed_ms=0,
                                           source=9)
                     return True
                 wifi_scan_count += 1
 
             # If HDOP value < HDOP poor threshold, then send
-            if (self.hdop_poor_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_poor_threshold) or self.hdop_poor_threshold is None:
+            if (self.hdop_poor_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_poor_threshold):
                 self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Poor Threshold ({self.hdop_poor_threshold:.1f})')
+                return True
+
+            if (self.hdop_poor_threshold is None):
+                self.debug_msg(f'Sending GNSS data base on no HDOP Threshopd. GNSS HDOP: ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) ')
                 return True
 
             return False

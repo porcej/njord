@@ -72,7 +72,7 @@ class GNSS:
         self.nmea_mode = NMEA.Modes.MODE_INVALID
 
     def set_basic_values(self, fixtime=None, latitude=None, longitude=None, heading=None,
-                         speed=None, taip_id=None, nmea_mode=None, source=None, age=None):
+                         speed_ms=None, speed_kmph=None, speed_knots=None, speed_mph=None, taip_id=None, nmea_mode=None, source=None, age=None):
         """
         Set basic GNSS values.
 
@@ -81,12 +81,27 @@ class GNSS:
             latitude (float): Latitude in decimal degrees.
             longitude (float): Longitude in decimal degrees.
             heading (float): Track degrees.
-            speed (float): Ground speed in meters per second (m/s).
+            speed_ms (float): Ground speed in meters per second (m/s).
+            speed_kmph (float): Ground speed in kilometers per hour (kmps).
+            speed_knots (float): Ground speed in knots (knot).
+            speed_mph (float): Ground speed in miles per hour (mph).
             taip_id (str): TAIP ID string to identify this GPS unit.
             nmea_mode (str): NMEA string to identify the GPS mode of operation.
             source (TAIP.Sources or None): Source of data.
             age (TAIP.Age or None): Age of data.
         """
+        
+        # Convert speed to M/s
+        speed = None
+        if speed_kmph is not None:
+            speed = GNSSMeasure.kmph_to_ms(speed_kmph)
+        elif speed_ms is not None:
+            speed = speed_ms
+        elif speed_knots is not None:
+            speed = GNSSMeasure.knots_to_ms(speed_knots)
+        elif speed_mph is not None:
+            speed = GNSSMeasure.mph_to_ms(speed_mph)
+
         self.fixtime = datetime.fromtimestamp(fixtime / 1000) if fixtime else datetime.utcnow().replace(microsecond=0)
         self.latitude = latitude if latitude is not None else self.latitude
         self.longitude = longitude if longitude is not None else self.longitude

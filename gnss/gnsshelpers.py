@@ -258,6 +258,20 @@ class GNSSMeasure:
     _MS_TO_KNOTS = 1.94384  # Meters per second to knots conversion factor
     _MS_TO_MPH = 2.2369362920544  # Meters per second to miles per hour conversion factor
     _KMPH_TO_MPH = 0.621371192 # kilometers per hour to miles per hour conversion factor
+    _KMPH_TO_MS = 0.277778 # kilometers per hour to miles per second converstion factor
+
+    @staticmethod
+    def kmph_to_ms(speed_kmph: float) -> float:
+        """
+        Convert speed from kilometers per hour to meters per second.
+
+        Args:
+            speed_kmph (float): Speed in kilometers per hour.
+
+        Returns:
+            float: Speed in meters per second.
+        """
+        return speed_kmph * GNSSMeasure._KMPH_TO_MS
 
     @staticmethod
     def kmph_to_mph(speed_kmph: float) -> float:
