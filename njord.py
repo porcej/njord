@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 from requests.exceptions import HTTPError, RequestException
 from aosapi import AOSClient, AOSKeys
 from gnss import GNSS
-from gnss.gnsshelpers import TAIP GNSSMeasure
+from gnss.gnsshelpers import TAIP
 import NetTools as NT
 
 
@@ -242,11 +242,12 @@ class NJORD:
         """
         if self.get_location():
             for messenger in self.messengers:
-                if messenger['taip_alias'] is not None:
-                    self.apply_taip_alias(messenger['taip_alias'])
+                taip_alias = messenger.get('taip_alias', None)
+                if taip_alias is not None:
+                    self.apply_taip_alias(taip_alias)
                 message  = self.gnss.get_message(message_type=messenger['message_type'])
                 messenger['carrier'].print(message)
-                if messenger['taip_alias'] is not None:
+                if taip_alias is not None:
                     self.gnss.taip_id = self.taip_id
 
     def get_location(self) -> bool:
@@ -268,15 +269,13 @@ class NJORD:
                 latitude=aos_resp[AOSKeys.GNSS.LATITUDE],
                 longitude=aos_resp[AOSKeys.GNSS.LONGITUDE],
                 heading=aos_resp[AOSKeys.GNSS.HEADING],
-                speed=GNSSMeasure.kmph_to_mph(aos_resp[AOSKeys.GNSS.SPEED]),
+                speed_kmph=aos_resp[AOSKeys.GNSS.SPEED],
                 taip_id=aos_resp[AOSKeys.GNSS.TAIP_ID])
 
             # If HDOP value < HDOP Excellent Threshold, then send without wifi scan
             if self.hdop_excellent_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_excellent_threshold:
                 self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Excellent Threshold ({self.hdop_excellent_threshold})')
                 return True
-
-            from pprint import pprint
 
             ap_info = None
             wifi_scan_count = 1
@@ -295,14 +294,18 @@ class NJORD:
                                           latitude=ap_info['Latitude'],
                                           longitude=ap_info['Longitude'],
                                           heading=0,
-                                          speed=0,
+                                          speed_ms=0,
                                           source=9)
                     return True
                 wifi_scan_count += 1
 
             # If HDOP value < HDOP poor threshold, then send
-            if (self.hdop_poor_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_poor_threshold) or self.hdop_poor_threshold is None:
+            if (self.hdop_poor_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_poor_threshold):
                 self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Poor Threshold ({self.hdop_poor_threshold:.1f})')
+                return True
+
+            if (self.hdop_poor_threshold is None):
+                self.debug_msg(f'Sending GNSS data base on no HDOP Threshopd. GNSS HDOP: ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) ')
                 return True
 
             return False
