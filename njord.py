@@ -265,12 +265,40 @@ class NJORD:
             fields = [AOSKeys.QUERY.GNSS, AOSKeys.QUERY.WIFI]
             aos_resp = self.AOSClient.get_data(fields)
 
+            # Calculate TAIP Data Source
+            aos_data_qi = aos_resp[AOSKeys.GNSS.QI]
+            aos_num_sats = aos_resp[AOSKeys.GNSS.SATCOUNT]
+            source = 9
+
+            # GPS Fix
+            if (aos_data_qi == 1):
+                source = 0
+
+            # Differential GPS Gix
+            elif (1 < aos_data_qi < 6):
+                source = 2
+
+            # Handle 2D and 3D fixes based on number of sats
+            if (aos_num_sats >= 3):
+                source = source + 1
+
+            # Handle No Fix
+            if (aos_data_qi == 0):
+                source = 9
+
+            # Handle Dead Reckoning
+            if (aos_data_qi == 6):
+                source = 6
+
+
+
             self.gnss.set_basic_values(fixtime=aos_resp[AOSKeys.GNSS.FIXTIME],
                 latitude=aos_resp[AOSKeys.GNSS.LATITUDE],
                 longitude=aos_resp[AOSKeys.GNSS.LONGITUDE],
                 heading=aos_resp[AOSKeys.GNSS.HEADING],
                 speed_kmph=aos_resp[AOSKeys.GNSS.SPEED],
-                taip_id=aos_resp[AOSKeys.GNSS.TAIP_ID])
+                taip_id=aos_resp[AOSKeys.GNSS.TAIP_ID],
+                source=source)
 
             # If HDOP value < HDOP Excellent Threshold, then send without wifi scan
             if self.hdop_excellent_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_excellent_threshold:
