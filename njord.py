@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 from requests.exceptions import HTTPError, RequestException
 from aosapi import AOSClient, AOSKeys
 from gnss import GNSS
-from gnss.gnsshelpers import TAIP
+from gnss.gnsshelpers import TAIP GNSSMeasure
 import NetTools as NT
 
 
@@ -268,7 +268,7 @@ class NJORD:
                 latitude=aos_resp[AOSKeys.GNSS.LATITUDE],
                 longitude=aos_resp[AOSKeys.GNSS.LONGITUDE],
                 heading=aos_resp[AOSKeys.GNSS.HEADING],
-                speed=aos_resp[AOSKeys.GNSS.SPEED],
+                speed=GNSSMeasure.kmph_to_mph(aos_resp[AOSKeys.GNSS.SPEED]),
                 taip_id=aos_resp[AOSKeys.GNSS.TAIP_ID])
 
             # If HDOP value < HDOP Excellent Threshold, then send without wifi scan
