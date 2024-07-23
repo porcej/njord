@@ -242,127 +242,107 @@ class GNSSTime:
         seconds_since_previous_midnight = (time - previous_midnight).total_seconds()
         return int(seconds_since_previous_midnight)
 
-class GNSSMeasure:
+class GNSSSpeed:
     """
     Provides utility methods for converting GNSS measurement units.
 
-    This class includes static methods to convert speeds between:
-        - Meters per second (m/s) and knots
-        - Meters per second (m/s) and miles per hour (mph)
+    This class includes static methods to convert speeds between various units
 
     Conversion factors:
         - 1 meter per second is approximately 1.94384 knots.
         - 1 meter per second is approximately 2.2369362920544 miles per hour.
     """
-
+    VALID_UNITS = ['ms', 'knots', 'mph', 'kmph']
     _MS_TO_KNOTS = 1.94384  # Meters per second to knots conversion factor
     _MS_TO_MPH = 2.2369362920544  # Meters per second to miles per hour conversion factor
-    _KMPH_TO_MPH = 0.621371192 # kilometers per hour to miles per hour conversion factor
-    _KMPH_TO_MS = 0.277778 # kilometers per hour to miles per second converstion factor
+    _KMPH_TO_MPH = 0.621371192  # Kilometers per hour to miles per hour conversion factor
+    _KMPH_TO_MS = 0.277778  # Kilometers per hour to meters per second conversion factor
 
     @staticmethod
-    def kmph_to_ms(speed_kmph: float) -> float:
+    def convert(speed: float, input_units: str, output_units: str) -> float:
         """
-        Convert speed from kilometers per hour to meters per second.
+        Converts speed from input_units to output_units.
 
         Args:
-            speed_kmph (float): Speed in kilometers per hour.
+            speed (float): The speed value to convert.
+            input_units (str): The current unit of the speed. Must be one of 'ms', 'knots', 'mph', 'kmph'.
+            output_units (str): The desired unit to convert to. Must be one of 'ms', 'knots', 'mph', 'kmph'.
 
         Returns:
-            float: Speed in meters per second.
+            float: The converted speed value in the desired units.
+
+        Raises:
+            ValueError: If speed is not a number or if input_units or output_units are not valid.
         """
-        return speed_kmph * GNSSMeasure._KMPH_TO_MS
+        if input_units == output_units:
+            return speed
+
+        # Convert input speed to meters per second first
+        speed_in_ms = GNSSSpeed.to_ms(speed, input_units)
+
+        # Convert from meters per second to output units
+        converted_speed = GNSSSpeed.from_ms(speed, output_units)S
+        return converted_speed
+
+        @staticmethod
+    def to_ms(speed: float, units: str) -> float:
+        """
+        Converts speed from given units to meters per second (ms).
+
+        Args:
+            speed (float): The speed value to convert.
+            units (str): The current unit of the speed. Must be one of 'ms', 'knots', 'mph', 'kmph'.
+
+        Returns:
+            float: The speed value converted to meters per second.
+
+        Raises:
+            ValueError: If speed is not a number or if units are not valid.
+        """
+        if not isinstance(speed, (float, int)):
+            raise ValueError(f"Speed must be a number (float or int), got {type(speed).__name__} instead.")
+
+        if units not in GNSSSpeed.VALID_UNITS:
+            raise ValueError(f"Invalid units '{units}'. Must be one of {GNSSSpeed.VALID_UNITS}.")
+
+        if units == 'ms':
+            return speed
+        elif units == 'knots':
+            return speed / GNSSSpeed._MS_TO_KNOTS
+        elif units == 'mph':
+            return speed / GNSSSpeed._MS_TO_MPH
+        elif units == 'kmph':
+            return speed * GNSSSpeed._KMPH_TO_MS
 
     @staticmethod
-    def kmph_to_mph(speed_kmph: float) -> float:
+    def from_ms(speed: float, units: str) -> float:
         """
-        Convert speed from kilometers per hour to miles per hour.
+        Converts speed from meters per second (ms) to the given units.
 
         Args:
-            speed_kmph (float): Speed in kilometers per hour.
+            speed (float): The speed value in meters per second to convert.
+            units (str): The desired unit to convert to. Must be one of 'ms', 'knots', 'mph', 'kmph'.
 
         Returns:
-            float: Speed in knots.
+            float: The speed value converted to the desired units.
+
+        Raises:
+            ValueError: If speed is not a number or if units are not valid.
         """
-        return speed_kmph * GNSSMeasure._KMPH_TO_MPH
+        if not isinstance(speed, (float, int)):
+            raise ValueError(f"Speed must be a number (float or int), got {type(speed).__name__} instead.")
 
-    @staticmethod
-    def kmph_to_mph(speed_kmph: float) -> float:
-        """
-        Convert speed from kilometers per hour to miles per hour.
+        if units not in GNSSSpeed.VALID_UNITS:
+            raise ValueError(f"Invalid units '{units}'. Must be one of {GNSSSpeed.VALID_UNITS}.")
 
-        Args:
-            speed_kmph (float): Speed in kilometers per hour.
-
-        Returns:
-            float: Speed in miles per hour.
-        """
-        return speed_kmph * GNSSMeasure._KMPH_TO_MPH
-
-    @staticmethod
-    def mph_to_kmph(speed_mph: float) -> float:
-        """
-        Convert speed from miles per hour to kilometers per hour.
-
-        Args:
-            speed_kmph (float): Speed in miles per hour.
-
-        Returns:
-            float: Speed in kilometers per hour.
-        """
-        return speed_mph / GNSSMeasure._KMPH_TO_MPH
-
-    @staticmethod
-    def ms_to_knots(speed_ms: float) -> float:
-        """
-        Convert speed from meters per second to knots.
-
-        Args:
-            speed_ms (float): Speed in meters per second.
-
-        Returns:
-            float: Speed in knots.
-        """
-        return speed_ms * GNSSMeasure._MS_TO_KNOTS
-
-    @staticmethod
-    def knots_to_ms(speed_knots: float) -> float:
-        """
-        Convert speed from knots to meters per second.
-
-        Args:
-            speed_knots (float): Speed in knots.
-
-        Returns:
-            float: Speed in meters per second.
-        """
-        return speed_knots / GNSSMeasure._MS_TO_KNOTS
-
-    @staticmethod
-    def ms_to_mph(speed_ms: float) -> float:
-        """
-        Convert speed from meters per second to miles per hour.
-
-        Args:
-            speed_ms (float): Speed in meters per second.
-
-        Returns:
-            float: Speed in miles per hour.
-        """
-        return speed_ms * GNSSMeasure._MS_TO_MPH
-
-    @staticmethod
-    def mph_to_ms(speed_mph: float) -> float:
-        """
-        Convert speed from miles per hour to meters per second.
-
-        Args:
-            speed_mph (float): Speed in miles per hour.
-
-        Returns:
-            float: Speed in meters per second.
-        """
-        return speed_mph / GNSSMeasure._MS_TO_MPH
+        if units == 'ms':
+            return speed
+        elif units == 'knots':
+            return speed * GNSSSpeed._MS_TO_KNOTS
+        elif units == 'mph':
+            return speed * GNSSSpeed._MS_TO_MPH
+        elif units == 'kmph':
+            return speed / GNSSSpeed._KMPH_TO_MS
 
 class GNSSTools:
     """
