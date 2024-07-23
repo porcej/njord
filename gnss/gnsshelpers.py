@@ -281,10 +281,10 @@ class GNSSSpeed:
         speed_in_ms = GNSSSpeed.to_ms(speed, input_units)
 
         # Convert from meters per second to output units
-        converted_speed = GNSSSpeed.from_ms(speed, output_units)S
+        converted_speed = GNSSSpeed.from_ms(speed, output_units)
         return converted_speed
 
-        @staticmethod
+    @staticmethod
     def to_ms(speed: float, units: str) -> float:
         """
         Converts speed from given units to meters per second (ms).

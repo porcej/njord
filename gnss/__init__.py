@@ -26,7 +26,7 @@ __email__ = "porcej@gmail.com"
 __status__ = "Development"
 
 from gnss.gnss import GNSS
-from gnss.gnsshelpers import GNSSMeasure, GNSSTime, GNSSTools, NMEA, TAIP
+from gnss.gnsshelpers import GNSSSpeed, GNSSTime, GNSSTools, NMEA, TAIP
 
 # Example usage
 if __name__ == "__main__":
