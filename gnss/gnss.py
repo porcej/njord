@@ -21,7 +21,7 @@ from datetime import datetime
 from enum import Enum
 import json
 import requests
-from gnss.gnsshelpers import GNSSMeasure, GNSSTime, GNSSTools, NMEA, TAIP
+from gnss.gnsshelpers import GNSSSpeed, GNSSTime, GNSSTools, NMEA, TAIP
 
 class GNSS:
     """
@@ -72,7 +72,7 @@ class GNSS:
         self.nmea_mode = NMEA.Modes.MODE_INVALID
 
     def set_basic_values(self, fixtime=None, latitude=None, longitude=None, heading=None,
-                         speed_ms=None, speed_kmph=None, speed_knots=None, speed_mph=None, taip_id=None, nmea_mode=None, source=None, age=None):
+                         speed=None, speed_units=None, taip_id=None, nmea_mode=None, source=None, age=None):
         """
         Set basic GNSS values.
 
@@ -81,8 +81,8 @@ class GNSS:
             latitude (float): Latitude in decimal degrees.
             longitude (float): Longitude in decimal degrees.
             heading (float): Track degrees.
-            speed_ms (float): Ground speed in meters per second (m/s).
-            speed_kmph (float): Ground speed in kilometers per hour (kmps).
+            speed (float): Ground speed in meters per second in speed_units.
+            speed_units (str): Units for speed.
             speed_knots (float): Ground speed in knots (knot).
             speed_mph (float): Ground speed in miles per hour (mph).
             taip_id (str): TAIP ID string to identify this GPS unit.
@@ -111,6 +111,24 @@ class GNSS:
         self.source = source if source is not None else self.source
         self.nmea_mode = nmea_mode if nmea_mode is not None else self.nmea_mode
         self.age = age if age is not None else self.age
+
+    def set_speed(self, speed: float = None, speed_units: str = None) -> None:
+        """
+        Sets speed in meters per second (m/s).
+
+        Args:
+            speed (float, optional): The speed value to validate. Defaults to None.
+            speed_units (str, optional): The unit of speed to validate. Must be one of 'knots', 'ms', 'mph', 'kmph'. Defaults to None.
+
+        Raises:
+            ValueError: If speed is not a float, int, or None, or if speed_units is not a valid string or None.
+        """
+        try:
+            self.speed = GNSSSpeed.to_ms(speed, speed_units)
+        except:
+            # If we don't have a speed or its invalid, set speed to zero
+            self.speed = 0.0
+
 
     def get_message(self, message_type: str = "TAIP_PV") -> str:
         """
@@ -150,12 +168,13 @@ class GNSS:
         Returns:
             str: TAIP PV message.
         """
+        speed_mph = GNSSSpeed.from_ms(self.speed, 'mph')
         gps_tod = self.gps_time_of_day()
         lat_sign = '+' if self.latitude >= 0 else '-'
         lat = f'{lat_sign}{abs(self.latitude) * 100000:07.0f}'
         long_sign = '+' if self.longitude >= 0 else '-'
         longi = f'{long_sign}{abs(self.longitude) * 100000:08.0f}'
-        speed = f'{GNSSMeasure.ms_to_mph(self.speed):03.0f}'
+        speed = f'{speed_mph:03.0f}'
         heading = f'{self.heading:03.0f}'
         message = f">RPV{gps_tod:05d}{lat}{longi}{speed}{heading}{self.source}{self.age};ID={self.taip_id};*"
         return f"{message}{GNSSTools.hex_xor_checksum(message)}<"
@@ -249,8 +268,9 @@ class GNSS:
         date = self.fixtime.strftime('%d%m%y')
         magnetic_variation = 0.0
         magnetic_variation_direction = 'E'
+        speed_knots = GNSSSpeed.from_ms(self.speed, 'knots')
         message = (
-            f"RMC,{utc_time},{self.nmea_is_valid_data()},{lat},{lon},{GNSSMeasure.ms_to_knots(self.speed)},"
+            f"RMC,{utc_time},{self.nmea_is_valid_data()},{lat},{lon},{speed_knots},"
             f"{self.heading},{date},{magnetic_variation},{magnetic_variation_direction},{self.nmea_mode}"
         )
         return self.pack_nmea_message(message)
@@ -262,8 +282,9 @@ class GNSS:
         Returns:
             str: The $GxVTG message.
         """
+        speed_knots = GNSSSpeed.from_ms(self.speed, 'knots')
         message = (
-            f"VTG,{self.heading:.3f},T,,M,{GNSSMeasure.ms_to_knots(self.speed)},N,{self.speed * 3.6},K"
+            f"VTG,{self.heading:.3f},T,,M,{speed_knots},N,{self.speed * 3.6},K"
         )
         return self.pack_nmea_message(message)
 
