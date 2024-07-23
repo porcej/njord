@@ -296,7 +296,8 @@ class NJORD:
                 latitude=aos_resp[AOSKeys.GNSS.LATITUDE],
                 longitude=aos_resp[AOSKeys.GNSS.LONGITUDE],
                 heading=aos_resp[AOSKeys.GNSS.HEADING],
-                speed_kmph=aos_resp[AOSKeys.GNSS.SPEED],
+                speed=aos_resp[AOSKeys.GNSS.SPEED],
+                speed_units='kmph',
                 taip_id=aos_resp[AOSKeys.GNSS.TAIP_ID],
                 source=source)
 
@@ -322,7 +323,8 @@ class NJORD:
                                           latitude=ap_info['Latitude'],
                                           longitude=ap_info['Longitude'],
                                           heading=0,
-                                          speed_ms=0,
+                                          speed=0,
+                                          speed_units='ms',
                                           source=9)
                     return True
                 wifi_scan_count += 1

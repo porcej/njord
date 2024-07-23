@@ -91,22 +91,12 @@ class GNSS:
             age (TAIP.Age or None): Age of data.
         """
         
-        # Convert speed to M/s
-        speed = None
-        if speed_kmph is not None:
-            speed = GNSSMeasure.kmph_to_ms(speed_kmph)
-        elif speed_ms is not None:
-            speed = speed_ms
-        elif speed_knots is not None:
-            speed = GNSSMeasure.knots_to_ms(speed_knots)
-        elif speed_mph is not None:
-            speed = GNSSMeasure.mph_to_ms(speed_mph)
-
+        
+        self.set_speed(speed, speed_units)
         self.fixtime = datetime.fromtimestamp(fixtime / 1000) if fixtime else datetime.utcnow().replace(microsecond=0)
         self.latitude = latitude if latitude is not None else self.latitude
         self.longitude = longitude if longitude is not None else self.longitude
         self.heading = heading if heading is not None else self.heading
-        self.speed = speed if speed is not None else self.speed
         self.taip_id = taip_id if taip_id is not None else self.taip_id
         self.source = source if source is not None else self.source
         self.nmea_mode = nmea_mode if nmea_mode is not None else self.nmea_mode
