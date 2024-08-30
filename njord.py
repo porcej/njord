@@ -262,7 +262,7 @@ class NJORD:
             Exception: If an unexpected error occurs during processing.
         """
         try:
-            fields = [AOSKeys.QUERY.GNSS, AOSKeys.QUERY.WIFI]
+            fields = [AOSKeys.QUERY.GNSS, AOSKeys.QUERY.WIFI, AOSKeys.QUERY.INTERFACE]
             aos_resp = self.AOSClient.get_data(fields)
 
             # Calculate TAIP Data Source
