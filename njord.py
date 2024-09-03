@@ -172,8 +172,8 @@ class NJORD:
         
         try:
             self.load_json_configuration()
-        except FileNotFoundError:
-            pass
+        except FileNotFoundError as e:
+            self.debug_msg("Warning - JSON Configuration file was not found.")
 
         self.update_config()
 
@@ -192,7 +192,7 @@ class NJORD:
             msg (str): string to print to standard output
         """
         if self.debug:
-            print(msg)
+            print(f"{datetime.now().isoformat()} - {msg}", file=sys.stderr)
 
     def apply_taip_alias(self, taip_alias: str):
         """
@@ -227,10 +227,11 @@ class NJORD:
             now = datetime.now()
             if now > self.next_config_update:
                 # If we have a configuration update URL, check for updates
-                
-                self.download_json_if_updated()
                 try:
+                    self.download_json_if_updated()
                     self.load_json_configuration()
+                except (HTTPError, RequestException, ValueError, Exception) as e:
+                   self.debug_msg(f"Error downloading updated configuration: {e}")
                 except FileNotFoundError:
                     raise FileNotFoundError('Unable to read configuration file.')
                 self.next_config_update = datetime.now() + timedelta(seconds=self.config_update_interval)
@@ -436,6 +437,9 @@ class NJORD:
 
         try:
             aps = config_data[ConfigJsonKeys.KNOWN_APS]
+            from pprint import pprint
+            print("Loading JSON Configuration")
+            print(pprint(aps))
             self.access_points = {wn['Ssid']: [d for d in aps if d['Ssid'] == wn['Ssid']] for wn in aps}
             self.set_known_access_point_update_from_timestamp(config_data[ConfigJsonKeys.LAST_UPDATED])
             if self.file_creds:
@@ -462,12 +466,18 @@ class NJORD:
             raise ValueError("The aos_resp parameter must be a dictionary.")
 
         try:
+            from pprint import pprint
+            print("Access Points")
+            pprint(self.access_points)
             for ssid, wifi_access_points in self.access_points.items():
+                print(f'SSID {ssid}')
                 for band in AOSKeys.WIFI.BANDS:
                     ap_key = AOSKeys.WIFI.ap_list(ssid, band=band)
 
                     if ap_key in aos_resp:
                         access_points = {ap['Bssid']: ap for ap in wifi_access_points}
+                        
+                        print(pprint(access_points))
                         bssids = list(access_points.keys())
 
                         ap_info_str_list = aos_resp[ap_key].strip().split('\n\n')
@@ -732,7 +742,7 @@ def main():
         messages = validate_and_process_message_arguments(args)
     except ValueError as val_err:
         print(f'Parsing message argument: {val_err}', file=sys.stderr)
-        exit(5)
+        exit(1)
 
     aos_url = args.aosurl
 
@@ -778,9 +788,6 @@ def main():
             messenger['carrier'] = NT.TCPClient(msg['host'], msg['port'])
             
         app.add_messenger(messenger)
-
-
-    update_config_time = time
 
     if args.beacon is not None:
         while(1):
