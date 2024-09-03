@@ -27,3 +27,4 @@ class AOSQueryKeys:
     """
     GNSS = "location.gnss"
     WIFI = "net.wifi.ssid"
+    INTERFACE = "net.interface"
