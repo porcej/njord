@@ -160,6 +160,7 @@ class NJORD:
         self.wifi_scan_interval = wifi_scan_interval
         self.taip_id = '0000'
         self.debug = debug
+        self.cached_ap_info = None
         
         # This is a hack to accomadate the Central Square Mobile Clinets
         self.gnss.age = TAIP.Age.FRESH
@@ -263,7 +264,7 @@ class NJORD:
             Exception: If an unexpected error occurs during processing.
         """
         try:
-            fields = [AOSKeys.QUERY.GNSS, AOSKeys.QUERY.WIFI, AOSKeys.QUERY.INTERFACE]
+            fields = [AOSKeys.QUERY.GNSS, AOSKeys.QUERY.WIFI, AOSKeys.QUERY.INTERFACE, "vehicle.can.ignitionstatus"]
             aos_resp = self.AOSClient.get_data(fields)
 
             # Calculate TAIP Data Source
@@ -306,7 +307,24 @@ class NJORD:
             if self.hdop_excellent_threshold is not None and aos_resp[AOSKeys.GNSS.HDOP] < self.hdop_excellent_threshold:
                 self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Excellent Threshold ({self.hdop_excellent_threshold})')
                 return True
+            
+            ignition_status = aos_resp["vehicle.can.ignitionstatus"]
+            if self.cached_ap_info is not None and ignition_status == "on":
+                    self.debug_msg("Ignition is on; clearing cached AP info.")
+                    self.cached_ap_info = None
+            
+            #if there's still cached AP info, use it and early return
+            if self.cached_ap_info is not None:
+                self.gnss.set_basic_values(fixtime=None,
+                                          latitude=ap_info['Latitude'],
+                                          longitude=ap_info['Longitude'],
+                                          heading=0,
+                                          speed=0,
+                                          speed_units='ms',
+                                          source=9)
+                return True
 
+            #otherwise, scan for known APs
             ap_info = None
             wifi_scan_count = 1
             while wifi_scan_count <= self.num_wifi_scans:
@@ -327,6 +345,7 @@ class NJORD:
                                           speed=0,
                                           speed_units='ms',
                                           source=9)
+                    self.cached_ap_info = ap_info
                     return True
                 wifi_scan_count += 1
 
