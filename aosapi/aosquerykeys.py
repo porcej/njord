@@ -28,3 +28,4 @@ class AOSQueryKeys:
     GNSS = "location.gnss"
     WIFI = "net.wifi.ssid"
     INTERFACE = "net.interface"
+    IGNITION_STATUS = "vehicle.can.ignitionstatus"

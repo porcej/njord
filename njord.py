@@ -264,7 +264,7 @@ class NJORD:
             Exception: If an unexpected error occurs during processing.
         """
         try:
-            fields = [AOSKeys.QUERY.GNSS, AOSKeys.QUERY.WIFI, AOSKeys.QUERY.INTERFACE, "vehicle.can.ignitionstatus"]
+            fields = [AOSKeys.QUERY.GNSS, AOSKeys.QUERY.WIFI, AOSKeys.QUERY.INTERFACE, AOSKeys.QUERY.IGNITION_STATUS]
             aos_resp = self.AOSClient.get_data(fields)
 
             # Calculate TAIP Data Source
@@ -308,7 +308,7 @@ class NJORD:
                 self.debug_msg(f'Sending GNSS data based on GNSS HDOP ({aos_resp[AOSKeys.GNSS.HDOP]:.1f}) < Excellent Threshold ({self.hdop_excellent_threshold})')
                 return True
             
-            ignition_status = aos_resp["vehicle.can.ignitionstatus"]
+            ignition_status = aos_resp[AOSKeys.QUERY.IGNITION_STATUS]
             if self.cached_ap_info is not None and ignition_status == "on":
                     self.debug_msg("Ignition is on; clearing cached AP info.")
                     self.cached_ap_info = None
