@@ -123,7 +123,7 @@ class NJORD:
                  aos_url: str = None, config_url: str = None, aos_username: str = None,
                  aos_password: str = None, hdop_excellent_threshold: float = None,
                  hdop_poor_threshold: float = None, num_wifi_scans: int = 1,
-                 wifi_scan_interval: int = 1, debug: bool = False):
+                 wifi_scan_interval: int = 1,cache_ap_matches:bool=False, debug: bool = False):
         """
         Initialize the NJORD instance with configuration and API details.
 
@@ -158,9 +158,10 @@ class NJORD:
         self.hdop_poor_threshold = hdop_poor_threshold
         self.num_wifi_scans = num_wifi_scans
         self.wifi_scan_interval = wifi_scan_interval
+        self.cache_ap_matches = cache_ap_matches
+        self.cached_ap_info = None
         self.taip_id = '0000'
         self.debug = debug
-        self.cached_ap_info = None
         
         # This is a hack to accomadate the Central Square Mobile Clinets
         self.gnss.age = TAIP.Age.FRESH
@@ -345,7 +346,8 @@ class NJORD:
                                           speed=0,
                                           speed_units='ms',
                                           source=9)
-                    self.cached_ap_info = ap_info
+                    if self.cache_ap_matches == True:
+                        self.cached_ap_info = ap_info
                     return True
                 wifi_scan_count += 1
 
@@ -636,7 +638,12 @@ def parse_arguments():
     parser.add_argument(
         '-D', '--hdop-poor-threshold',
         type=float,
-        help="When GNSS data has a HDOP greather than this value, the GNSS data is ignored as invalid.")    
+        help="When GNSS data has a HDOP greather than this value, the GNSS data is ignored as invalid.")
+
+    parser.add_argument(
+        '-k', '--cache-ap-matches',
+        action='store_true',
+        help="Cache access point matches when vehicle ignition status is off.")    
 
     return parser.parse_args()
 
@@ -783,6 +790,7 @@ def main():
                 hdop_poor_threshold=args.hdop_poor_threshold,
                 num_wifi_scans=args.num_wifi_scan,
                 wifi_scan_interval=args.wifi_scan_delay,
+                cache_ap_matches=args.cache_ap_matches,
                 debug=args.verbose)
 
     messenger = {'message_type': args.messagetype.upper(), 'carrier': None}
