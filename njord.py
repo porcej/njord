@@ -316,9 +316,10 @@ class NJORD:
             
             #if there's still cached AP info, use it and early return
             if self.cached_ap_info is not None:
+                self.debug_msg("Using cached AP info.")
                 self.gnss.set_basic_values(fixtime=None,
-                                          latitude=ap_info['Latitude'],
-                                          longitude=ap_info['Longitude'],
+                                          latitude=self.cached_ap_info['Latitude'],
+                                          longitude=self.cached_ap_info['Longitude'],
                                           heading=0,
                                           speed=0,
                                           speed_units='ms',
