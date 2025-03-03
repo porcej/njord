@@ -469,7 +469,7 @@ class NJORD:
         try:
             from pprint import pprint
             self.debug_msg("Access Points")
-            self.debug_msg(pprint.pformat(self.access_points))
+            self.debug_msg(pformat(self.access_points))
             for ssid, wifi_access_points in self.access_points.items():
                 self.debug_msg(f'SSID {ssid}')
                 for band in AOSKeys.WIFI.BANDS:
@@ -478,7 +478,7 @@ class NJORD:
                     if ap_key in aos_resp:
                         access_points = {ap['Bssid']: ap for ap in wifi_access_points}
                         
-                        self.debug_msg(pprint.pformat(access_points))
+                        self.debug_msg(pformat(access_points))
                         bssids = list(access_points.keys())
 
                         ap_info_str_list = aos_resp[ap_key].strip().split('\n\n')
