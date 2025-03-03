@@ -20,6 +20,8 @@ import json
 import os
 import requests
 from urllib.parse import urlparse
+import warnings
+from urllib3.exceptions import InsecureRequestWarning
 from requests.exceptions import HTTPError, RequestException
 from .aoskeys import AOSKeys
 
@@ -55,6 +57,7 @@ class AOSClient:
             ValueError: If the base URL or file path is invalid.
         """
         self.verify_ssl = False
+        warnings.simplefilter("ignore", InsecureRequestWarning)
         self.file_proxy_api_data = None
 
         result = urlparse(base_url)
