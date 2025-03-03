@@ -249,6 +249,7 @@ class NJORD:
                 if taip_alias is not None:
                     self.apply_taip_alias(taip_alias)
                 message  = self.gnss.get_message(message_type=messenger['message_type'])
+                self.debug_msg(message)
                 messenger['carrier'].print(message)
                 if taip_alias is not None:
                     self.gnss.taip_id = self.taip_id
@@ -489,17 +490,17 @@ class NJORD:
 
         try:
             from pprint import pprint
-            print("Access Points")
-            pprint(self.access_points)
+            self.debug_msg("Access Points")
+            self.debug_msg(pprint.pformat(self.access_points))
             for ssid, wifi_access_points in self.access_points.items():
-                print(f'SSID {ssid}')
+                self.debug_msg(f'SSID {ssid}')
                 for band in AOSKeys.WIFI.BANDS:
                     ap_key = AOSKeys.WIFI.ap_list(ssid, band=band)
 
                     if ap_key in aos_resp:
                         access_points = {ap['Bssid']: ap for ap in wifi_access_points}
                         
-                        print(pprint(access_points))
+                        self.debug_msg(pprint.pformat(access_points))
                         bssids = list(access_points.keys())
 
                         ap_info_str_list = aos_resp[ap_key].strip().split('\n\n')
